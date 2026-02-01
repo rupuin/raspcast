@@ -237,15 +237,16 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
           "--input-ipc-server=" + MPV_SOCKET,
           "--ytdl",
           "--volume=100",
-          // Caching for smoother seeking
-          "--cache=yes",
-          "--cache-secs=60",
-          "--demuxer-max-bytes=100MiB",
-          "--demuxer-readahead-secs=30",
-          // Use keyframe seeking (faster, avoids audio glitches)
-          "--hr-seek=no",
-          // Prefer combined format for better seek (not separate audio/video)
-          "--ytdl-format=bestvideo[height<=1080][vcodec!*=av01]+bestaudio/best[height<=1080]/best",
+          // Fix YouTube seeking audio freeze (GitHub issue #8920)
+          // YouTube's chunked streaming conflicts with mpv's threaded demuxer
+          "--demuxer-thread=no",
+          // Still allow some read-ahead buffering
+          "--demuxer-max-bytes=150MiB",
+          "--demuxer-max-back-bytes=50MiB",
+          // Audio buffer to prevent glitches (important for Pi)
+          "--audio-buffer=1",
+          // Prefer formats friendly to seeking (mp4 container, avoid VP9/AV1 on Pi)
+          "--ytdl-format=bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best",
           msg.url,
         ],
         stdout: "ignore",
@@ -283,8 +284,7 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
 
     case "seek":
       if (typeof msg.percent === "number") {
-        // Use keyframes flag for faster seeking without audio glitches
-        await mpvCommand(["seek", msg.percent, "absolute-percent+keyframes"]);
+        await mpvCommand(["seek", msg.percent, "absolute-percent"]);
       }
       break;
 
