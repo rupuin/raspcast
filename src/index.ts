@@ -319,21 +319,20 @@ async function handleCommand(msg: any) {
           // HARDWARE ACCELERATION (RPi5)
           "--hwdec=auto-safe",
 
-          // FIX: YouTube seeking audio freeze (GitHub issue #8920)
-          "--demuxer-thread=no",
-
-          // CACHING
+          // CACHING - pause if buffer runs low instead of slow-mo
           "--cache=yes",
-          "--cache-secs=30",
-          "--demuxer-max-bytes=200MiB",
-          "--demuxer-max-back-bytes=100MiB",
+          "--cache-secs=60",
+          "--cache-pause=yes",
+          "--cache-pause-wait=5",
+          "--demuxer-max-bytes=300MiB",
+          "--demuxer-max-back-bytes=150MiB",
+          "--demuxer-readahead-secs=60",
 
           // PERFORMANCE
-          "--video-sync=display-resample",
           "--framedrop=vo",
 
           // AUDIO
-          "--audio-buffer=0.5",
+          "--audio-buffer=1",
 
           // NETWORK
           "--network-timeout=30",
