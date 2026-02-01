@@ -22,6 +22,8 @@ const playbackState = {
   position: 0,
   duration: 0,
   volume: 100,
+  subtitles: [] as { id: number; lang: string; title: string; selected: boolean }[],
+  subtitleEnabled: true,
 };
 
 // Connected WebSocket clients
@@ -128,6 +130,7 @@ app.delete("/api/history", requireAuth, async (c) => {
 // HTTP Command endpoint (more reliable than WS for commands)
 app.post("/api/cmd", requireAuth, async (c) => {
   const body = await c.req.json();
+  console.log("[cmd]", body.type, body.url ? body.url.slice(0, 80) + "..." : "");
   await handleCommand(body);
   return c.json({ ok: true });
 });
@@ -153,6 +156,8 @@ function broadcastStatus() {
       position: playbackState.position,
       duration: playbackState.duration,
       volume: playbackState.volume,
+      subtitles: playbackState.subtitles,
+      subtitleEnabled: playbackState.subtitleEnabled,
     },
   });
 }
@@ -178,6 +183,22 @@ function handleMpvEvent(msg: any) {
         if (typeof msg.data === "number") {
           playbackState.volume = Math.min(100, msg.data);
         }
+        break;
+      case "track-list":
+        if (Array.isArray(msg.data)) {
+          playbackState.subtitles = msg.data
+            .filter((t: any) => t.type === "sub")
+            .map((t: any) => ({
+              id: t.id,
+              lang: t.lang || "unknown",
+              title: t.title || t.lang || `Track ${t.id}`,
+              selected: t.selected || false,
+            }));
+          console.log("[mpv] Subtitle tracks:", playbackState.subtitles.length);
+        }
+        break;
+      case "sub-visibility":
+        playbackState.subtitleEnabled = msg.data === true;
         break;
     }
     // Broadcast on every property change for real-time updates
@@ -216,6 +237,7 @@ async function connectToMpv(): Promise<boolean> {
           }
         },
         open(socket) {
+          console.log("[mpv] IPC connected");
           mpvSocket = socket;
           playbackState.playing = true;
 
@@ -224,6 +246,8 @@ async function connectToMpv(): Promise<boolean> {
           socket.write(JSON.stringify({ command: ["observe_property", 2, "duration"] }) + "\n");
           socket.write(JSON.stringify({ command: ["observe_property", 3, "pause"] }) + "\n");
           socket.write(JSON.stringify({ command: ["observe_property", 4, "volume"] }) + "\n");
+          socket.write(JSON.stringify({ command: ["observe_property", 5, "track-list"] }) + "\n");
+          socket.write(JSON.stringify({ command: ["observe_property", 6, "sub-visibility"] }) + "\n");
 
           clearTimeout(timeout);
           if (!resolved) {
@@ -284,7 +308,11 @@ function getPlaybackState() {
 async function handleCommand(msg: any) {
   switch (msg.type) {
     case "play": {
-      if (!msg.url) break;
+      if (!msg.url) {
+        console.log("[play] No URL provided");
+        break;
+      }
+      console.log("[play] Starting:", msg.url.slice(0, 100));
 
       // Close existing mpv connection
       if (mpvSocket) {
@@ -364,7 +392,8 @@ async function handleCommand(msg: any) {
       // Start connection attempts
       setTimeout(() => tryConnect(), 100);
 
-      mpvProcess.exited.then(() => {
+      mpvProcess.exited.then((code) => {
+        console.log("[mpv] Exited with code:", code);
         if (mpvSocket) {
           mpvSocket.end();
           mpvSocket = null;
@@ -434,6 +463,28 @@ async function handleCommand(msg: any) {
         const vol = Math.max(0, Math.min(100, msg.value));
         mpvCommand(["set_property", "volume", vol]);
       }
+      break;
+
+    case "sub-add":
+      // Add subtitle from URL
+      if (msg.url) {
+        console.log("[sub] Adding subtitle:", msg.url.slice(0, 80));
+        mpvCommand(["sub-add", msg.url]);
+      }
+      break;
+
+    case "sub-select":
+      // Select subtitle track by ID (or "no" to disable)
+      if (msg.id === "no") {
+        mpvCommand(["set_property", "sid", "no"]);
+      } else if (typeof msg.id === "number") {
+        mpvCommand(["set_property", "sid", msg.id]);
+      }
+      break;
+
+    case "sub-toggle":
+      // Toggle subtitle visibility
+      mpvCommand(["cycle", "sub-visibility"]);
       break;
   }
 }
