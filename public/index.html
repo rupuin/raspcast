@@ -641,8 +641,23 @@
     volumeTrack.addEventListener('mousedown', onVolumeStart);
     volumeTrack.addEventListener('touchstart', onVolumeStart, { passive: false });
 
+    // Auto-login if PIN stored
     if (storedPin) {
-      connectWs();
+      // Set HTTP cookie for /api/cmd endpoints
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: storedPin })
+      }).then(res => {
+        if (res.ok) {
+          connectWs();
+        } else {
+          localStorage.removeItem('pin');
+          storedPin = '';
+        }
+      }).catch(() => {
+        connectWs(); // Try anyway
+      });
     }
 
     // ==================== HTTP Commands ====================
@@ -782,12 +797,31 @@
 
     // ==================== Auth ====================
 
-    function authenticate() {
+    async function authenticate() {
       const pin = pinInput.value;
       if (!pin) return;
-      storedPin = pin;
-      localStorage.setItem('pin', pin);
-      connectWs();
+
+      // Set HTTP cookie for /api/cmd endpoints
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+
+        if (!res.ok) {
+          authStatus.textContent = 'Invalid PIN';
+          authStatus.className = 'status error';
+          return;
+        }
+
+        storedPin = pin;
+        localStorage.setItem('pin', pin);
+        connectWs();
+      } catch (err) {
+        authStatus.textContent = 'Connection error';
+        authStatus.className = 'status error';
+      }
     }
 
     function showPlayer() {
