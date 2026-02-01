@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Raspcast</title>
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230a0a0a' width='100' height='100' rx='20'/><polygon fill='%23e11d48' points='35,25 35,75 75,50'/></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fafafa;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      padding-top: env(safe-area-inset-top, 20px);
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      text-align: center;
+      color: #e11d48;
+    }
+
+    .card {
+      background: #141414;
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid #1f1f1f;
+    }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 16px;
+      background: #0a0a0a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      color: #fafafa;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus { border-color: #e11d48; }
+    input::placeholder { color: #555; }
+
+    button {
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active { transform: scale(0.96); }
+
+    .btn-primary {
+      background: #e11d48;
+      color: white;
+      width: 100%;
+      padding: 14px 20px;
+      margin-top: 12px;
+    }
+
+    .btn-primary:hover { background: #be123c; }
+
+    /* URL Input Section */
+    .url-section { position: relative; }
+
+    .url-collapsed {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .url-collapsed input {
+      flex: 1;
+    }
+
+    .btn-add {
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      background: #1f1f1f;
+      color: #888;
+      border-radius: 12px;
+      padding: 0;
+    }
+
+    .btn-add:hover { background: #2a2a2a; color: #fff; }
+
+    .btn-add svg { width: 24px; height: 24px; }
+
+    /* Now Playing */
+    .now-playing {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    .now-playing-label {
+      font-size: 11px;
+      color: #4ade80;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .now-playing-title {
+      font-size: 15px;
+      color: #fafafa;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Seek Slider */
+    .seek-section {
+      margin-bottom: 20px;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #1f1f1f;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #e11d48;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .seek-slider::-webkit-slider-thumb {
+      background: #fff;
+    }
+
+    /* Main Controls */
+    .main-controls {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .playback-controls {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .btn-skip {
+      width: 48px;
+      height: 48px;
+      background: #1f1f1f;
+      color: #aaa;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    .btn-skip:hover { background: #2a2a2a; color: #fff; }
+    .btn-skip svg { width: 20px; height: 20px; }
+
+    .btn-playpause {
+      width: 72px;
+      height: 72px;
+      background: #e11d48;
+      color: white;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    .btn-playpause:hover { background: #be123c; }
+    .btn-playpause svg { width: 32px; height: 32px; }
+
+    /* Volume Slider (Vertical) */
+    .volume-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 44px;
+    }
+
+    .volume-slider-wrap {
+      height: 100px;
+      width: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .volume-slider {
+      width: 100px;
+      height: 6px;
+      transform: rotate(-90deg);
+      transform-origin: center;
+    }
+
+    .volume-label {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+    }
+
+    .volume-icon {
+      color: #666;
+    }
+
+    .volume-icon svg { width: 20px; height: 20px; }
+
+    /* Stop Controls */
+    .stop-controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-stop {
+      flex: 1;
+      padding: 14px;
+      background: #1f1f1f;
+      color: #888;
+    }
+
+    .btn-stop:hover { background: #2a2a2a; color: #fff; }
+
+    .btn-stop.danger {
+      background: #450a0a;
+      color: #f87171;
+    }
+
+    .btn-stop.danger:hover { background: #7f1d1d; }
+
+    .btn-stop svg { width: 20px; height: 20px; }
+
+    /* History */
+    .history-section {
+      margin-top: auto;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .history-title {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .history-clear {
+      font-size: 12px;
+      color: #555;
+      background: none;
+      padding: 4px 8px;
+    }
+
+    .history-clear:hover { color: #ef4444; }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: #0a0a0a;
+      border: 1px solid #1f1f1f;
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .history-item:hover {
+      border-color: #333;
+      background: #111;
+    }
+
+    .history-item-title {
+      font-size: 14px;
+      color: #ccc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-empty {
+      font-size: 13px;
+      color: #444;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+      padding: 8px;
+    }
+
+    .status.error { color: #ef4444; }
+
+    .hidden { display: none !important; }
+
+    /* Idle state - no playback */
+    .idle-view .playback-card { display: none; }
+    .idle-view .url-section .btn-add { display: none; }
+    .idle-view .url-section input { display: block; }
+    .idle-view .url-section .btn-primary { display: flex; }
+
+    /* Playing state */
+    .playing-view .idle-card { display: none; }
+    .playing-view .url-expanded { display: none; }
+    .playing-view .url-collapsed { display: flex; }
+  </style>
+</head>
+<body>
+  <!-- Auth -->
+  <div id="auth-view" class="container">
+    <h1>Raspcast</h1>
+    <div class="card">
+      <input type="password" id="pin-input" placeholder="Enter PIN" inputmode="numeric" pattern="[0-9]*">
+      <button class="btn-primary" onclick="authenticate()">Unlock</button>
+    </div>
+    <div id="auth-status" class="status"></div>
+  </div>
+
+  <!-- Player -->
+  <div id="player-view" class="container hidden">
+    <h1>Raspcast</h1>
+
+    <!-- URL Input (expanded when idle, collapsed when playing) -->
+    <div class="card url-section" id="url-section">
+      <div class="url-expanded">
+        <input type="text" id="url-input" placeholder="Paste video URL..." autocomplete="off" autocapitalize="off">
+        <button class="btn-primary" onclick="play()">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          Cast
+        </button>
+      </div>
+      <div class="url-collapsed hidden">
+        <input type="text" id="url-input-mini" placeholder="Paste URL..." autocomplete="off" autocapitalize="off">
+        <button class="btn-add" onclick="playMini()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Playback Controls (visible when playing) -->
+    <div class="card playback-card hidden" id="playback-card">
+      <div class="now-playing">
+        <div class="now-playing-label">Now Playing</div>
+        <div id="now-playing-title" class="now-playing-title">-</div>
+      </div>
+
+      <!-- Seek -->
+      <div class="seek-section">
+        <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" oninput="onSeekInput()" onchange="seekTo()">
+        <div class="time-display">
+          <span id="time-current">0:00</span>
+          <span id="time-duration">0:00</span>
+        </div>
+      </div>
+
+      <!-- Main: Skip / Play / Volume -->
+      <div class="main-controls">
+        <div class="playback-controls">
+          <button class="btn-skip" onclick="seek(-10)">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          </button>
+          <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
+            <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <button class="btn-skip" onclick="seek(10)">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
+          </button>
+        </div>
+
+        <div class="volume-container">
+          <div class="volume-icon">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          </div>
+          <div class="volume-slider-wrap">
+            <input type="range" class="volume-slider" id="volume-slider" min="0" max="150" value="100" oninput="updateVolumeLabel()" onchange="setVolume()">
+          </div>
+          <div class="volume-label" id="volume-label">100%</div>
+        </div>
+      </div>
+
+      <!-- Stop -->
+      <div class="stop-controls">
+        <button class="btn-stop" onclick="stop()">
+          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+          Stop
+        </button>
+        <button class="btn-stop danger" onclick="kill()">
+          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          Kill
+        </button>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="card history-section" id="history-section">
+      <div class="history-header">
+        <span class="history-title">Recent</span>
+        <button class="history-clear" onclick="clearHistory()">Clear</button>
+      </div>
+      <div id="history-list" class="history-list">
+        <div class="history-empty">No history yet</div>
+      </div>
+    </div>
+
+    <div id="player-status" class="status"></div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    const authView = $('auth-view');
+    const playerView = $('player-view');
+    const pinInput = $('pin-input');
+    const urlInput = $('url-input');
+    const urlInputMini = $('url-input-mini');
+    const urlSection = $('url-section');
+    const playbackCard = $('playback-card');
+    const authStatus = $('auth-status');
+    const playerStatus = $('player-status');
+    const seekSlider = $('seek-slider');
+    const volumeSlider = $('volume-slider');
+    const volumeLabel = $('volume-label');
+    const nowPlayingTitle = $('now-playing-title');
+    const timeCurrent = $('time-current');
+    const timeDuration = $('time-duration');
+    const historyList = $('history-list');
+    const iconPlay = $('icon-play');
+    const iconPause = $('icon-pause');
+
+    let isPlaying = false;
+    let isPaused = false;
+    let statusInterval = null;
+    let seeking = false;
+
+    checkAuth();
+
+    pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') play(); });
+    urlInputMini.addEventListener('keydown', e => { if (e.key === 'Enter') playMini(); });
+
+    async function checkAuth() {
+      try {
+        const res = await fetch('/api/auth');
+        const data = await res.json();
+        if (data.authenticated) showPlayer();
+      } catch {}
+    }
+
+    async function authenticate() {
+      const pin = pinInput.value;
+      if (!pin) return;
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin })
+        });
+        if (res.ok) showPlayer();
+        else {
+          authStatus.textContent = 'Invalid PIN';
+          authStatus.className = 'status error';
+          pinInput.value = '';
+        }
+      } catch {
+        authStatus.textContent = 'Connection error';
+        authStatus.className = 'status error';
+      }
+    }
+
+    function showPlayer() {
+      authView.classList.add('hidden');
+      playerView.classList.remove('hidden');
+      urlInput.focus();
+      loadHistory();
+      checkStatus();
+      statusInterval = setInterval(checkStatus, 1000);
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.playing) {
+          if (!isPlaying) enterPlayingMode();
+          isPlaying = true;
+          isPaused = data.paused;
+
+          if (data.current) {
+            nowPlayingTitle.textContent = data.current.title;
+          }
+
+          // Update seek slider
+          if (!seeking && data.duration > 0) {
+            const pct = (data.position / data.duration) * 100;
+            seekSlider.value = pct;
+            timeCurrent.textContent = formatTime(data.position);
+            timeDuration.textContent = formatTime(data.duration);
+          }
+
+          // Update volume
+          volumeSlider.value = data.volume;
+          volumeLabel.textContent = Math.round(data.volume) + '%';
+
+          // Update play/pause icon
+          iconPlay.classList.toggle('hidden', !isPaused);
+          iconPause.classList.toggle('hidden', isPaused);
+        } else {
+          if (isPlaying) exitPlayingMode();
+          isPlaying = false;
+        }
+      } catch {}
+    }
+
+    function enterPlayingMode() {
+      playbackCard.classList.remove('hidden');
+      urlSection.querySelector('.url-expanded').classList.add('hidden');
+      urlSection.querySelector('.url-collapsed').classList.remove('hidden');
+    }
+
+    function exitPlayingMode() {
+      playbackCard.classList.add('hidden');
+      urlSection.querySelector('.url-expanded').classList.remove('hidden');
+      urlSection.querySelector('.url-collapsed').classList.add('hidden');
+      nowPlayingTitle.textContent = '-';
+      seekSlider.value = 0;
+      timeCurrent.textContent = '0:00';
+      timeDuration.textContent = '0:00';
+    }
+
+    function formatTime(secs) {
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return m + ':' + s.toString().padStart(2, '0');
+    }
+
+    async function play(url) {
+      url = url || urlInput.value.trim();
+      if (!url) return;
+
+      setStatus('Starting...');
+      try {
+        const res = await fetch('/api/play', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          urlInput.value = '';
+          setStatus('');
+          loadHistory();
+        } else {
+          const data = await res.json();
+          setStatus(data.error || 'Error', true);
+        }
+      } catch {
+        setStatus('Connection error', true);
+      }
+    }
+
+    function playMini() {
+      const url = urlInputMini.value.trim();
+      if (!url) return;
+      urlInputMini.value = '';
+      play(url);
+    }
+
+    async function togglePause() {
+      try { await fetch('/api/pause', { method: 'POST' }); } catch {}
+    }
+
+    async function seek(seconds) {
+      try {
+        await fetch('/api/seek', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ seconds })
+        });
+      } catch {}
+    }
+
+    function onSeekInput() {
+      seeking = true;
+    }
+
+    async function seekTo() {
+      seeking = false;
+      try {
+        await fetch('/api/seek-to', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ percent: seekSlider.value })
+        });
+      } catch {}
+    }
+
+    async function stop() {
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+        setStatus('');
+      } catch {}
+    }
+
+    async function kill() {
+      try {
+        await fetch('/api/stop', { method: 'POST' });
+        setStatus('');
+      } catch {}
+    }
+
+    function updateVolumeLabel() {
+      volumeLabel.textContent = volumeSlider.value + '%';
+    }
+
+    async function setVolume() {
+      try {
+        await fetch('/api/volume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ volume: volumeSlider.value })
+        });
+      } catch {}
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/history');
+        const history = await res.json();
+        renderHistory(history);
+      } catch {}
+    }
+
+    function renderHistory(history) {
+      if (!history || history.length === 0) {
+        historyList.innerHTML = '<div class="history-empty">No history yet</div>';
+        return;
+      }
+      historyList.innerHTML = history.map(item => `
+        <div class="history-item" onclick="play('${item.url.replace(/'/g, "\\'")}')">
+          <div class="history-item-title">${escapeHtml(item.title)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function clearHistory() {
+      try {
+        await fetch('/api/history', { method: 'DELETE' });
+        loadHistory();
+      } catch {}
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function setStatus(text, isError) {
+      playerStatus.textContent = text;
+      playerStatus.className = 'status' + (isError ? ' error' : '');
+    }
+  </script>
+</body>
+</html>

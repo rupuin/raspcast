@@ -1,0 +1,15 @@
+[Unit]
+Description=Raspcast - Web-based mpv remote
+After=network.target
+
+[Service]
+Type=simple
+User=rupuin
+WorkingDirectory=/home/rupuin/raspcast
+Environment=PIN=1234
+ExecStart=/home/rupuin/.bun/bin/bun run src/index.ts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
