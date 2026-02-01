@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { getCookie, setCookie } from "hono/cookie";
-import { spawn, type Subprocess } from "bun";
+import { spawn, type Subprocess, type ServerWebSocket } from "bun";
 import { unlink, readFile, writeFile } from "node:fs/promises";
 
 const app = new Hono();
@@ -14,13 +14,15 @@ const MAX_HISTORY = 10;
 let mpvProcess: Subprocess | null = null;
 let currentMedia: { url: string; title: string } | null = null;
 
+// Connected WebSocket clients
+const wsClients = new Set<ServerWebSocket<{ authenticated: boolean }>>();
+
 interface HistoryItem {
   url: string;
   title: string;
   timestamp: number;
 }
 
-// Load/save history
 async function loadHistory(): Promise<HistoryItem[]> {
   try {
     const data = await readFile(HISTORY_FILE, "utf-8");
@@ -41,20 +43,15 @@ async function addToHistory(url: string, title: string): Promise<void> {
   await saveHistory(filtered.slice(0, MAX_HISTORY));
 }
 
-// Fetch page title from URL
 async function fetchTitle(url: string): Promise<string> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-
     const res = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; Raspcast/1.0)",
-      },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Raspcast/1.0)" },
     });
     clearTimeout(timeout);
-
     const html = await res.text();
     const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (match) {
@@ -69,16 +66,14 @@ async function fetchTitle(url: string): Promise<string> {
         .slice(0, 100);
     }
   } catch {}
-
   try {
-    const domain = new URL(url).hostname.replace("www.", "");
-    return domain;
+    return new URL(url).hostname.replace("www.", "");
   } catch {
     return url.slice(0, 50);
   }
 }
 
-// Auth middleware
+// Auth middleware for HTTP
 const requireAuth = async (c: any, next: any) => {
   const token = getCookie(c, "auth");
   if (token !== PIN) {
@@ -90,7 +85,7 @@ const requireAuth = async (c: any, next: any) => {
 // Static files
 app.use("/*", serveStatic({ root: "./public" }));
 
-// Auth endpoint
+// Auth endpoints
 app.post("/api/auth", async (c) => {
   const { pin } = await c.req.json();
   if (pin === PIN) {
@@ -109,7 +104,18 @@ app.get("/api/auth", async (c) => {
   return c.json({ authenticated: token === PIN });
 });
 
-// Send command to mpv (fire and forget)
+// History endpoints (keep as HTTP for simplicity)
+app.get("/api/history", requireAuth, async (c) => {
+  return c.json(await loadHistory());
+});
+
+app.delete("/api/history", requireAuth, async (c) => {
+  await saveHistory([]);
+  broadcast({ type: "history", data: [] });
+  return c.json({ ok: true });
+});
+
+// MPV command (fire and forget)
 async function mpvCommand(command: any[]): Promise<boolean> {
   try {
     await Bun.connect({
@@ -129,12 +135,11 @@ async function mpvCommand(command: any[]): Promise<boolean> {
   }
 }
 
-// Get property from mpv with response
+// Get property from mpv
 async function mpvGetProperty(property: string): Promise<any> {
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 500);
+    const timeout = setTimeout(() => resolve(null), 300);
     let buffer = "";
-
     Bun.connect({
       unix: MPV_SOCKET,
       socket: {
@@ -148,9 +153,7 @@ async function mpvGetProperty(property: string): Promise<any> {
           } catch {}
         },
         open(socket) {
-          socket.write(
-            JSON.stringify({ command: ["get_property", property] }) + "\n"
-          );
+          socket.write(JSON.stringify({ command: ["get_property", property] }) + "\n");
         },
         error() {
           clearTimeout(timeout);
@@ -167,93 +170,10 @@ async function mpvGetProperty(property: string): Promise<any> {
   });
 }
 
-// Play URL
-app.post("/api/play", requireAuth, async (c) => {
-  const { url } = await c.req.json();
-  if (!url) {
-    return c.json({ error: "url required" }, 400);
-  }
-
-  if (mpvProcess) {
-    mpvProcess.kill();
-    mpvProcess = null;
-    try {
-      await unlink(MPV_SOCKET);
-    } catch {}
-  }
-
-  const titlePromise = fetchTitle(url);
-
-  mpvProcess = spawn({
-    cmd: [
-      "mpv",
-      "--fullscreen",
-      "--input-ipc-server=" + MPV_SOCKET,
-      "--ytdl",
-      "--volume=100",
-      url,
-    ],
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-
-  const title = await titlePromise;
-  currentMedia = { url, title };
-  await addToHistory(url, title);
-
-  mpvProcess.exited.then(() => {
-    mpvProcess = null;
-    currentMedia = null;
-  });
-
-  return c.json({ ok: true, url, title });
-});
-
-// Pause/resume toggle
-app.post("/api/pause", requireAuth, async (c) => {
-  const ok = await mpvCommand(["cycle", "pause"]);
-  return c.json({ ok });
-});
-
-// Stop playback
-app.post("/api/stop", requireAuth, async (c) => {
-  await mpvCommand(["quit"]);
-  if (mpvProcess) {
-    mpvProcess.kill();
-    mpvProcess = null;
-  }
-  currentMedia = null;
-  return c.json({ ok: true });
-});
-
-// Seek relative (seconds)
-app.post("/api/seek", requireAuth, async (c) => {
-  const { seconds } = await c.req.json();
-  const secs = Number(seconds) || 10;
-  const ok = await mpvCommand(["seek", secs, "relative"]);
-  return c.json({ ok });
-});
-
-// Seek absolute (percentage 0-100)
-app.post("/api/seek-to", requireAuth, async (c) => {
-  const { percent } = await c.req.json();
-  const pct = Math.max(0, Math.min(100, Number(percent) || 0));
-  const ok = await mpvCommand(["seek", pct, "absolute-percent"]);
-  return c.json({ ok });
-});
-
-// Set volume (0-150)
-app.post("/api/volume", requireAuth, async (c) => {
-  const { volume } = await c.req.json();
-  const vol = Math.max(0, Math.min(150, Number(volume) || 100));
-  const ok = await mpvCommand(["set_property", "volume", vol]);
-  return c.json({ ok, volume: vol });
-});
-
-// Get playback status with position
-app.get("/api/status", requireAuth, async (c) => {
+// Get current playback state
+async function getPlaybackState() {
   if (!mpvProcess) {
-    return c.json({ playing: false, current: null });
+    return { playing: false, current: null };
   }
 
   const [position, duration, paused, volume] = await Promise.all([
@@ -263,32 +183,146 @@ app.get("/api/status", requireAuth, async (c) => {
     mpvGetProperty("volume"),
   ]);
 
-  return c.json({
+  return {
     playing: true,
     paused: paused === true,
     current: currentMedia,
     position: position ?? 0,
     duration: duration ?? 0,
     volume: volume ?? 100,
-  });
-});
+  };
+}
 
-// Get history
-app.get("/api/history", requireAuth, async (c) => {
-  const history = await loadHistory();
-  return c.json(history);
-});
+// Broadcast to all authenticated WS clients
+function broadcast(message: any) {
+  const data = JSON.stringify(message);
+  for (const client of wsClients) {
+    if (client.data.authenticated) {
+      client.send(data);
+    }
+  }
+}
 
-// Clear history
-app.delete("/api/history", requireAuth, async (c) => {
-  await saveHistory([]);
-  return c.json({ ok: true });
-});
+// Handle WS commands
+async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, msg: any) {
+  if (!ws.data.authenticated) {
+    if (msg.type === "auth" && msg.pin === PIN) {
+      ws.data.authenticated = true;
+      ws.send(JSON.stringify({ type: "auth", ok: true }));
+      // Send initial state
+      ws.send(JSON.stringify({ type: "status", data: await getPlaybackState() }));
+      ws.send(JSON.stringify({ type: "history", data: await loadHistory() }));
+    } else {
+      ws.send(JSON.stringify({ type: "auth", ok: false }));
+    }
+    return;
+  }
+
+  switch (msg.type) {
+    case "play": {
+      if (!msg.url) break;
+
+      if (mpvProcess) {
+        mpvProcess.kill();
+        mpvProcess = null;
+        try { await unlink(MPV_SOCKET); } catch {}
+      }
+
+      const titlePromise = fetchTitle(msg.url);
+
+      mpvProcess = spawn({
+        cmd: ["mpv", "--fullscreen", "--input-ipc-server=" + MPV_SOCKET, "--ytdl", "--volume=100", msg.url],
+        stdout: "ignore",
+        stderr: "ignore",
+      });
+
+      const title = await titlePromise;
+      currentMedia = { url: msg.url, title };
+      await addToHistory(msg.url, title);
+
+      mpvProcess.exited.then(() => {
+        mpvProcess = null;
+        currentMedia = null;
+        broadcast({ type: "status", data: { playing: false, current: null } });
+      });
+
+      broadcast({ type: "playing", data: { url: msg.url, title } });
+      broadcast({ type: "history", data: await loadHistory() });
+      break;
+    }
+
+    case "pause":
+      await mpvCommand(["cycle", "pause"]);
+      break;
+
+    case "stop":
+      await mpvCommand(["quit"]);
+      if (mpvProcess) {
+        mpvProcess.kill();
+        mpvProcess = null;
+      }
+      currentMedia = null;
+      broadcast({ type: "status", data: { playing: false, current: null } });
+      break;
+
+    case "seek":
+      if (typeof msg.percent === "number") {
+        await mpvCommand(["seek", msg.percent, "absolute-percent"]);
+      }
+      break;
+
+    case "volume":
+      if (typeof msg.value === "number") {
+        const vol = Math.max(0, Math.min(150, msg.value));
+        await mpvCommand(["set_property", "volume", vol]);
+      }
+      break;
+
+    case "status":
+      ws.send(JSON.stringify({ type: "status", data: await getPlaybackState() }));
+      break;
+  }
+}
+
+// State broadcast interval
+let stateInterval: Timer | null = null;
+
+function startStateBroadcast() {
+  if (stateInterval) return;
+  stateInterval = setInterval(async () => {
+    if (wsClients.size > 0 && mpvProcess) {
+      broadcast({ type: "status", data: await getPlaybackState() });
+    }
+  }, 500); // 500ms for smoother seek slider
+}
+
+startStateBroadcast();
 
 console.log(`Raspcast running on http://0.0.0.0:${PORT}`);
 
 export default {
   port: PORT,
   hostname: "0.0.0.0",
-  fetch: app.fetch,
+  fetch(req: Request, server: any) {
+    // Handle WebSocket upgrade
+    if (req.headers.get("upgrade") === "websocket") {
+      const success = server.upgrade(req, { data: { authenticated: false } });
+      return success ? undefined : new Response("WebSocket upgrade failed", { status: 500 });
+    }
+    return app.fetch(req, server);
+  },
+  websocket: {
+    open(ws: ServerWebSocket<{ authenticated: boolean }>) {
+      wsClients.add(ws);
+    },
+    message(ws: ServerWebSocket<{ authenticated: boolean }>, message: string) {
+      try {
+        const msg = JSON.parse(message);
+        handleWsCommand(ws, msg);
+      } catch {}
+    },
+    close(ws: ServerWebSocket<{ authenticated: boolean }>) {
+      wsClients.delete(ws);
+    },
+  },
 };

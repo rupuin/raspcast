@@ -89,7 +89,7 @@
 
     .btn-primary:hover { background: #be123c; }
 
-    /* URL Input Section */
+    /* URL Input */
     .url-section { position: relative; }
 
     .url-collapsed {
@@ -98,9 +98,7 @@
       gap: 12px;
     }
 
-    .url-collapsed input {
-      flex: 1;
-    }
+    .url-collapsed input { flex: 1; }
 
     .btn-add {
       width: 48px;
@@ -113,13 +111,12 @@
     }
 
     .btn-add:hover { background: #2a2a2a; color: #fff; }
-
     .btn-add svg { width: 24px; height: 24px; }
 
     /* Now Playing */
     .now-playing {
       text-align: center;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
 
     .now-playing-label {
@@ -140,7 +137,7 @@
 
     /* Seek Slider */
     .seek-section {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
 
     .time-display {
@@ -148,7 +145,7 @@
       justify-content: space-between;
       font-size: 12px;
       color: #666;
-      margin-top: 8px;
+      margin-top: 10px;
       font-variant-numeric: tabular-nums;
     }
 
@@ -164,8 +161,8 @@
 
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 22px;
       background: #e11d48;
       border-radius: 50%;
       cursor: pointer;
@@ -179,34 +176,21 @@
     /* Main Controls */
     .main-controls {
       display: flex;
-      align-items: center;
-      gap: 16px;
+      align-items: stretch;
+      gap: 20px;
       margin-bottom: 20px;
     }
 
-    .playback-controls {
+    .play-section {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
     }
-
-    .btn-skip {
-      width: 48px;
-      height: 48px;
-      background: #1f1f1f;
-      color: #aaa;
-      border-radius: 50%;
-      padding: 0;
-    }
-
-    .btn-skip:hover { background: #2a2a2a; color: #fff; }
-    .btn-skip svg { width: 20px; height: 20px; }
 
     .btn-playpause {
-      width: 72px;
-      height: 72px;
+      width: 80px;
+      height: 80px;
       background: #e11d48;
       color: white;
       border-radius: 50%;
@@ -214,43 +198,50 @@
     }
 
     .btn-playpause:hover { background: #be123c; }
-    .btn-playpause svg { width: 32px; height: 32px; }
+    .btn-playpause svg { width: 36px; height: 36px; }
 
     /* Volume Slider (Vertical) */
     .volume-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      width: 44px;
-    }
-
-    .volume-slider-wrap {
-      height: 100px;
-      width: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .volume-slider {
-      width: 100px;
-      height: 6px;
-      transform: rotate(-90deg);
-      transform-origin: center;
-    }
-
-    .volume-label {
-      font-size: 11px;
-      color: #666;
-      text-align: center;
+      gap: 10px;
+      width: 50px;
     }
 
     .volume-icon {
       color: #666;
     }
 
-    .volume-icon svg { width: 20px; height: 20px; }
+    .volume-icon svg { width: 22px; height: 22px; }
+
+    .volume-slider-wrap {
+      height: 160px;
+      width: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .volume-slider {
+      width: 160px;
+      height: 8px;
+      transform: rotate(-90deg);
+      transform-origin: center;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      width: 26px;
+      height: 26px;
+    }
+
+    .volume-label {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
 
     /* Stop Controls */
     .stop-controls {
@@ -273,7 +264,6 @@
     }
 
     .btn-stop.danger:hover { background: #7f1d1d; }
-
     .btn-stop svg { width: 20px; height: 20px; }
 
     /* History */
@@ -306,7 +296,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 180px;
+      max-height: 160px;
       overflow-y: auto;
     }
 
@@ -347,19 +337,9 @@
     }
 
     .status.error { color: #ef4444; }
+    .status.connected { color: #4ade80; }
 
     .hidden { display: none !important; }
-
-    /* Idle state - no playback */
-    .idle-view .playback-card { display: none; }
-    .idle-view .url-section .btn-add { display: none; }
-    .idle-view .url-section input { display: block; }
-    .idle-view .url-section .btn-primary { display: flex; }
-
-    /* Playing state */
-    .playing-view .idle-card { display: none; }
-    .playing-view .url-expanded { display: none; }
-    .playing-view .url-collapsed { display: flex; }
   </style>
 </head>
 <body>
@@ -377,7 +357,7 @@
   <div id="player-view" class="container hidden">
     <h1>Raspcast</h1>
 
-    <!-- URL Input (expanded when idle, collapsed when playing) -->
+    <!-- URL Input -->
     <div class="card url-section" id="url-section">
       <div class="url-expanded">
         <input type="text" id="url-input" placeholder="Paste video URL..." autocomplete="off" autocapitalize="off">
@@ -394,7 +374,7 @@
       </div>
     </div>
 
-    <!-- Playback Controls (visible when playing) -->
+    <!-- Playback Controls -->
     <div class="card playback-card hidden" id="playback-card">
       <div class="now-playing">
         <div class="now-playing-label">Now Playing</div>
@@ -403,25 +383,20 @@
 
       <!-- Seek -->
       <div class="seek-section">
-        <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" oninput="onSeekInput()" onchange="seekTo()">
+        <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1"
+          oninput="onSeekInput()" onchange="seekTo()" ontouchend="seekTo()">
         <div class="time-display">
           <span id="time-current">0:00</span>
           <span id="time-duration">0:00</span>
         </div>
       </div>
 
-      <!-- Main: Skip / Play / Volume -->
+      <!-- Play + Volume -->
       <div class="main-controls">
-        <div class="playback-controls">
-          <button class="btn-skip" onclick="seek(-10)">
-            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
-          </button>
+        <div class="play-section">
           <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
             <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-          </button>
-          <button class="btn-skip" onclick="seek(10)">
-            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
           </button>
         </div>
 
@@ -430,7 +405,8 @@
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
           </div>
           <div class="volume-slider-wrap">
-            <input type="range" class="volume-slider" id="volume-slider" min="0" max="150" value="100" oninput="updateVolumeLabel()" onchange="setVolume()">
+            <input type="range" class="volume-slider" id="volume-slider" min="0" max="150" value="100"
+              oninput="onVolumeInput()" onchange="setVolume()" ontouchend="setVolume()">
           </div>
           <div class="volume-label" id="volume-label">100%</div>
         </div>
@@ -442,7 +418,7 @@
           <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
           Stop
         </button>
-        <button class="btn-stop danger" onclick="kill()">
+        <button class="btn-stop danger" onclick="stop()">
           <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
           Kill
         </button>
@@ -485,89 +461,124 @@
     const iconPlay = $('icon-play');
     const iconPause = $('icon-pause');
 
+    let ws = null;
     let isPlaying = false;
-    let isPaused = false;
-    let statusInterval = null;
     let seeking = false;
+    let volumeChanging = false;
+    let reconnectTimer = null;
+    let storedPin = localStorage.getItem('pin') || '';
 
-    checkAuth();
+    // Start
+    init();
 
     pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
     urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') play(); });
     urlInputMini.addEventListener('keydown', e => { if (e.key === 'Enter') playMini(); });
 
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/auth');
-        const data = await res.json();
-        if (data.authenticated) showPlayer();
-      } catch {}
+    function init() {
+      if (storedPin) {
+        connectWs(storedPin);
+      }
     }
 
-    async function authenticate() {
+    function connectWs(pin) {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'auth', pin }));
+      };
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        handleMessage(msg);
+      };
+
+      ws.onclose = () => {
+        if (storedPin) {
+          reconnectTimer = setTimeout(() => connectWs(storedPin), 2000);
+        }
+      };
+
+      ws.onerror = () => {
+        setStatus('Connection error', true);
+      };
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case 'auth':
+          if (msg.ok) {
+            showPlayer();
+            setStatus('');
+          } else {
+            authStatus.textContent = 'Invalid PIN';
+            authStatus.className = 'status error';
+            pinInput.value = '';
+            localStorage.removeItem('pin');
+            storedPin = '';
+          }
+          break;
+
+        case 'status':
+          updateStatus(msg.data);
+          break;
+
+        case 'history':
+          renderHistory(msg.data);
+          break;
+
+        case 'playing':
+          nowPlayingTitle.textContent = msg.data.title;
+          break;
+      }
+    }
+
+    function updateStatus(data) {
+      if (data.playing) {
+        if (!isPlaying) enterPlayingMode();
+        isPlaying = true;
+
+        if (data.current) {
+          nowPlayingTitle.textContent = data.current.title;
+        }
+
+        // Update seek slider (only if not dragging)
+        if (!seeking && data.duration > 0) {
+          const pct = (data.position / data.duration) * 100;
+          seekSlider.value = pct;
+          timeCurrent.textContent = formatTime(data.position);
+          timeDuration.textContent = formatTime(data.duration);
+        }
+
+        // Update volume (only if not dragging)
+        if (!volumeChanging) {
+          volumeSlider.value = data.volume;
+          volumeLabel.textContent = Math.round(data.volume) + '%';
+        }
+
+        // Update play/pause icon
+        iconPlay.classList.toggle('hidden', !data.paused);
+        iconPause.classList.toggle('hidden', data.paused);
+      } else {
+        if (isPlaying) exitPlayingMode();
+        isPlaying = false;
+      }
+    }
+
+    function authenticate() {
       const pin = pinInput.value;
       if (!pin) return;
-      try {
-        const res = await fetch('/api/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pin })
-        });
-        if (res.ok) showPlayer();
-        else {
-          authStatus.textContent = 'Invalid PIN';
-          authStatus.className = 'status error';
-          pinInput.value = '';
-        }
-      } catch {
-        authStatus.textContent = 'Connection error';
-        authStatus.className = 'status error';
-      }
+
+      storedPin = pin;
+      localStorage.setItem('pin', pin);
+      connectWs(pin);
     }
 
     function showPlayer() {
       authView.classList.add('hidden');
       playerView.classList.remove('hidden');
       urlInput.focus();
-      loadHistory();
-      checkStatus();
-      statusInterval = setInterval(checkStatus, 1000);
-    }
-
-    async function checkStatus() {
-      try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
-
-        if (data.playing) {
-          if (!isPlaying) enterPlayingMode();
-          isPlaying = true;
-          isPaused = data.paused;
-
-          if (data.current) {
-            nowPlayingTitle.textContent = data.current.title;
-          }
-
-          // Update seek slider
-          if (!seeking && data.duration > 0) {
-            const pct = (data.position / data.duration) * 100;
-            seekSlider.value = pct;
-            timeCurrent.textContent = formatTime(data.position);
-            timeDuration.textContent = formatTime(data.duration);
-          }
-
-          // Update volume
-          volumeSlider.value = data.volume;
-          volumeLabel.textContent = Math.round(data.volume) + '%';
-
-          // Update play/pause icon
-          iconPlay.classList.toggle('hidden', !isPaused);
-          iconPause.classList.toggle('hidden', isPaused);
-        } else {
-          if (isPlaying) exitPlayingMode();
-          isPlaying = false;
-        }
-      } catch {}
     }
 
     function enterPlayingMode() {
@@ -587,107 +598,64 @@
     }
 
     function formatTime(secs) {
-      const m = Math.floor(secs / 60);
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
       const s = Math.floor(secs % 60);
+      if (h > 0) {
+        return h + ':' + m.toString().padStart(2, '0') + ':' + s.toString().padStart(2, '0');
+      }
       return m + ':' + s.toString().padStart(2, '0');
     }
 
-    async function play(url) {
+    function send(msg) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
+    }
+
+    function play(url) {
       url = url || urlInput.value.trim();
       if (!url) return;
-
+      send({ type: 'play', url });
+      urlInput.value = '';
       setStatus('Starting...');
-      try {
-        const res = await fetch('/api/play', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          urlInput.value = '';
-          setStatus('');
-          loadHistory();
-        } else {
-          const data = await res.json();
-          setStatus(data.error || 'Error', true);
-        }
-      } catch {
-        setStatus('Connection error', true);
-      }
     }
 
     function playMini() {
       const url = urlInputMini.value.trim();
       if (!url) return;
       urlInputMini.value = '';
-      play(url);
+      send({ type: 'play', url });
     }
 
-    async function togglePause() {
-      try { await fetch('/api/pause', { method: 'POST' }); } catch {}
-    }
-
-    async function seek(seconds) {
-      try {
-        await fetch('/api/seek', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ seconds })
-        });
-      } catch {}
+    function togglePause() {
+      send({ type: 'pause' });
     }
 
     function onSeekInput() {
       seeking = true;
+      // Show preview time while dragging
+      const duration = parseFloat(timeDuration.textContent.split(':').reduce((a, t) => a * 60 + parseFloat(t), 0)) || 0;
+      // Just update the current time display based on slider
     }
 
-    async function seekTo() {
-      seeking = false;
-      try {
-        await fetch('/api/seek-to', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ percent: seekSlider.value })
-        });
-      } catch {}
+    function seekTo() {
+      send({ type: 'seek', percent: parseFloat(seekSlider.value) });
+      setTimeout(() => { seeking = false; }, 500);
     }
 
-    async function stop() {
-      try {
-        await fetch('/api/stop', { method: 'POST' });
-        setStatus('');
-      } catch {}
+    function stop() {
+      send({ type: 'stop' });
     }
 
-    async function kill() {
-      try {
-        await fetch('/api/stop', { method: 'POST' });
-        setStatus('');
-      } catch {}
-    }
-
-    function updateVolumeLabel() {
+    function onVolumeInput() {
+      volumeChanging = true;
       volumeLabel.textContent = volumeSlider.value + '%';
     }
 
-    async function setVolume() {
-      try {
-        await fetch('/api/volume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ volume: volumeSlider.value })
-        });
-      } catch {}
-    }
-
-    async function loadHistory() {
-      try {
-        const res = await fetch('/api/history');
-        const history = await res.json();
-        renderHistory(history);
-      } catch {}
+    function setVolume() {
+      send({ type: 'volume', value: parseInt(volumeSlider.value) });
+      setTimeout(() => { volumeChanging = false; }, 300);
     }
 
     function renderHistory(history) {
@@ -705,7 +673,6 @@
     async function clearHistory() {
       try {
         await fetch('/api/history', { method: 'DELETE' });
-        loadHistory();
       } catch {}
     }
 
