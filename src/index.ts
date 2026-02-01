@@ -231,7 +231,23 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
       const titlePromise = fetchTitle(msg.url);
 
       mpvProcess = spawn({
-        cmd: ["mpv", "--fullscreen", "--input-ipc-server=" + MPV_SOCKET, "--ytdl", "--volume=100", msg.url],
+        cmd: [
+          "mpv",
+          "--fullscreen",
+          "--input-ipc-server=" + MPV_SOCKET,
+          "--ytdl",
+          "--volume=100",
+          // Caching for smoother seeking
+          "--cache=yes",
+          "--cache-secs=60",
+          "--demuxer-max-bytes=100MiB",
+          "--demuxer-readahead-secs=30",
+          // Use keyframe seeking (faster, avoids audio glitches)
+          "--hr-seek=no",
+          // Prefer combined format for better seek (not separate audio/video)
+          "--ytdl-format=bestvideo[height<=1080][vcodec!*=av01]+bestaudio/best[height<=1080]/best",
+          msg.url,
+        ],
         stdout: "ignore",
         stderr: "ignore",
       });
@@ -267,7 +283,8 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
 
     case "seek":
       if (typeof msg.percent === "number") {
-        await mpvCommand(["seek", msg.percent, "absolute-percent"]);
+        // Use keyframes flag for faster seeking without audio glitches
+        await mpvCommand(["seek", msg.percent, "absolute-percent+keyframes"]);
       }
       break;
 
