@@ -113,10 +113,18 @@
     .btn-add:hover { background: #2a2a2a; color: #fff; }
     .btn-add svg { width: 24px; height: 24px; }
 
-    /* Now Playing */
-    .now-playing {
-      text-align: center;
+    /* Playback Header */
+    .playback-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 20px;
+    }
+
+    .now-playing {
+      flex: 1;
+      text-align: center;
+      min-width: 0;
     }
 
     .now-playing-label {
@@ -127,6 +135,16 @@
       margin-bottom: 6px;
     }
 
+    .now-playing-label.loading {
+      color: #fbbf24;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
     .now-playing-title {
       font-size: 15px;
       color: #fafafa;
@@ -134,6 +152,50 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    /* Settings Menu */
+    .settings-menu {
+      position: relative;
+    }
+
+    .btn-menu {
+      width: 36px;
+      height: 36px;
+      background: transparent;
+      color: #666;
+      border-radius: 8px;
+      padding: 0;
+    }
+
+    .btn-menu:hover { background: #1f1f1f; color: #aaa; }
+    .btn-menu svg { width: 20px; height: 20px; }
+
+    .menu-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: #1f1f1f;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 6px;
+      min-width: 140px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .menu-item {
+      width: 100%;
+      padding: 10px 12px;
+      background: transparent;
+      color: #ccc;
+      border-radius: 6px;
+      justify-content: flex-start;
+      font-size: 14px;
+    }
+
+    .menu-item:hover { background: #2a2a2a; color: #f87171; }
+    .menu-item svg { width: 16px; height: 16px; }
 
     /* Seek Slider */
     .seek-section {
@@ -178,7 +240,6 @@
       display: flex;
       align-items: stretch;
       gap: 20px;
-      margin-bottom: 20px;
     }
 
     .play-section {
@@ -201,6 +262,13 @@
     .btn-skip:hover { background: #2a2a2a; color: #fff; }
     .btn-skip svg { width: 20px; height: 20px; }
 
+    .play-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
     .btn-playpause {
       width: 72px;
       height: 72px;
@@ -213,13 +281,25 @@
     .btn-playpause:hover { background: #be123c; }
     .btn-playpause svg { width: 32px; height: 32px; }
 
+    .btn-stop-small {
+      width: 36px;
+      height: 36px;
+      background: #1f1f1f;
+      color: #888;
+      border-radius: 8px;
+      padding: 0;
+    }
+
+    .btn-stop-small:hover { background: #2a2a2a; color: #f87171; }
+    .btn-stop-small svg { width: 16px; height: 16px; }
+
     /* Volume Slider (Vertical) */
     .volume-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
-      width: 70px;
+      gap: 8px;
+      width: 80px;
       padding: 8px 0;
     }
 
@@ -237,58 +317,38 @@
     }
 
     .volume-slider-wrap {
-      height: 220px;
-      width: 60px;
+      width: 80px;
+      height: 180px;
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
     }
 
     .volume-slider {
-      width: 200px;
-      height: 12px;
+      width: 160px;
+      height: 16px;
       transform: rotate(-90deg);
+      transform-origin: center center;
       -webkit-appearance: none;
       appearance: none;
       background: linear-gradient(to right, #e11d48 0%, #e11d48 var(--vol-pct, 100%), #2a2a2a var(--vol-pct, 100%), #2a2a2a 100%);
-      border-radius: 6px;
+      border-radius: 8px;
       outline: none;
       touch-action: none;
+      position: absolute;
     }
 
     .volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       background: #fff;
       border-radius: 50%;
       cursor: pointer;
       border: 3px solid #e11d48;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
-
-    /* Stop Controls */
-    .stop-controls {
-      display: flex;
-      gap: 12px;
-    }
-
-    .btn-stop {
-      flex: 1;
-      padding: 14px;
-      background: #1f1f1f;
-      color: #888;
-    }
-
-    .btn-stop:hover { background: #2a2a2a; color: #fff; }
-
-    .btn-stop.danger {
-      background: #450a0a;
-      color: #f87171;
-    }
-
-    .btn-stop.danger:hover { background: #7f1d1d; }
-    .btn-stop svg { width: 20px; height: 20px; }
 
     /* History */
     .history-section {
@@ -400,9 +460,22 @@
 
     <!-- Playback Controls -->
     <div class="card playback-card hidden" id="playback-card">
-      <div class="now-playing">
-        <div class="now-playing-label">Now Playing</div>
-        <div id="now-playing-title" class="now-playing-title">-</div>
+      <div class="playback-header">
+        <div class="now-playing">
+          <div class="now-playing-label" id="now-playing-label">Loading...</div>
+          <div id="now-playing-title" class="now-playing-title">-</div>
+        </div>
+        <div class="settings-menu">
+          <button class="btn-menu" onclick="toggleMenu()" title="Options">
+            <svg fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </button>
+          <div class="menu-dropdown hidden" id="menu-dropdown">
+            <button class="menu-item" onclick="kill()">
+              <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              Kill Process
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Seek -->
@@ -421,10 +494,15 @@
           <button class="btn-skip" onclick="skip(-10)" title="-10s">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
           </button>
-          <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
-            <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-          </button>
+          <div class="play-group">
+            <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
+              <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button class="btn-stop-small" onclick="stop()" title="Stop">
+              <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+            </button>
+          </div>
           <button class="btn-skip" onclick="skip(10)" title="+10s">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
           </button>
@@ -440,18 +518,6 @@
           </div>
           <div class="volume-label" id="volume-label">100%</div>
         </div>
-      </div>
-
-      <!-- Stop -->
-      <div class="stop-controls">
-        <button class="btn-stop" onclick="stop()">
-          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
-          Stop
-        </button>
-        <button class="btn-stop danger" onclick="stop()">
-          <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-          Kill
-        </button>
       </div>
     </div>
 
@@ -481,6 +547,8 @@
     const playbackCard = $('playback-card');
     const authStatus = $('auth-status');
     const playerStatus = $('player-status');
+    const nowPlayingLabel = $('now-playing-label');
+    const menuDropdown = $('menu-dropdown');
     const seekSlider = $('seek-slider');
     const volumeSlider = $('volume-slider');
     const volumeLabel = $('volume-label');
@@ -497,6 +565,9 @@
     let volumeChanging = false;
     let reconnectTimer = null;
     let storedPin = localStorage.getItem('pin') || '';
+    let lastConfirmedVolume = 100;
+    let pendingCommands = [];
+    let volumeThrottleTimer = null;
 
     // Start
     init();
@@ -541,6 +612,7 @@
           if (msg.ok) {
             showPlayer();
             setStatus('');
+            flushPendingCommands();
           } else {
             authStatus.textContent = 'Invalid PIN';
             authStatus.className = 'status error';
@@ -573,17 +645,26 @@
           nowPlayingTitle.textContent = data.current.title;
         }
 
-        // Update seek slider (only if not dragging)
+        // Update loading state
+        if (data.duration > 0) {
+          nowPlayingLabel.textContent = 'Now Playing';
+          nowPlayingLabel.classList.remove('loading');
+          currentDuration = data.duration;
+          timeDuration.textContent = formatTime(data.duration);
+        } else {
+          nowPlayingLabel.textContent = 'Loading...';
+          nowPlayingLabel.classList.add('loading');
+        }
         if (!seeking && data.duration > 0) {
           const pct = (data.position / data.duration) * 100;
           seekSlider.value = pct;
           timeCurrent.textContent = formatTime(data.position);
-          timeDuration.textContent = formatTime(data.duration);
         }
 
-        // Update volume (only if not dragging)
-        if (!volumeChanging) {
+        // Update volume (only if not dragging and not seeking)
+        if (!volumeChanging && !seeking) {
           const vol = Math.min(100, Math.round(data.volume));
+          lastConfirmedVolume = vol;
           volumeSlider.value = vol;
           volumeLabel.textContent = vol + '%';
           volumeSlider.style.setProperty('--vol-pct', vol + '%');
@@ -617,6 +698,8 @@
       playbackCard.classList.remove('hidden');
       urlSection.querySelector('.url-expanded').classList.add('hidden');
       urlSection.querySelector('.url-collapsed').classList.remove('hidden');
+      nowPlayingLabel.textContent = 'Loading...';
+      nowPlayingLabel.classList.add('loading');
     }
 
     function exitPlayingMode() {
@@ -624,9 +707,13 @@
       urlSection.querySelector('.url-expanded').classList.remove('hidden');
       urlSection.querySelector('.url-collapsed').classList.add('hidden');
       nowPlayingTitle.textContent = '-';
+      nowPlayingLabel.textContent = 'Loading...';
+      nowPlayingLabel.classList.remove('loading');
       seekSlider.value = 0;
       timeCurrent.textContent = '0:00';
       timeDuration.textContent = '0:00';
+      currentDuration = 0;
+      closeMenu();
     }
 
     function formatTime(secs) {
@@ -642,22 +729,43 @@
     function send(msg) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(msg));
+        return true;
+      } else {
+        // Queue command for when connection opens
+        pendingCommands.push(msg);
+        return false;
+      }
+    }
+
+    function flushPendingCommands() {
+      while (pendingCommands.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+        const msg = pendingCommands.shift();
+        ws.send(JSON.stringify(msg));
       }
     }
 
     function play(url) {
-      url = url || urlInput.value.trim();
+      const inputUrl = urlInput.value.trim();
+      url = url || inputUrl;
       if (!url) return;
-      send({ type: 'play', url });
-      urlInput.value = '';
-      setStatus('Starting...');
+
+      if (send({ type: 'play', url })) {
+        if (!arguments[0]) urlInput.value = ''; // Only clear if from input, not history
+        setStatus('Starting...');
+      } else {
+        setStatus('Connecting...', true);
+      }
     }
 
     function playMini() {
       const url = urlInputMini.value.trim();
       if (!url) return;
-      urlInputMini.value = '';
-      send({ type: 'play', url });
+
+      if (send({ type: 'play', url })) {
+        urlInputMini.value = '';
+      } else {
+        setStatus('Connecting...', true);
+      }
     }
 
     function togglePause() {
@@ -668,11 +776,15 @@
       send({ type: 'skip', seconds });
     }
 
+    let currentDuration = 0;
+
     function onSeekInput() {
       seeking = true;
       // Show preview time while dragging
-      const duration = parseFloat(timeDuration.textContent.split(':').reduce((a, t) => a * 60 + parseFloat(t), 0)) || 0;
-      // Just update the current time display based on slider
+      if (currentDuration > 0) {
+        const previewPos = (parseFloat(seekSlider.value) / 100) * currentDuration;
+        timeCurrent.textContent = formatTime(previewPos);
+      }
     }
 
     function seekTo() {
@@ -686,11 +798,23 @@
 
     function onVolumeInput() {
       volumeChanging = true;
-      volumeLabel.textContent = volumeSlider.value + '%';
-      volumeSlider.style.setProperty('--vol-pct', volumeSlider.value + '%');
+      const vol = parseInt(volumeSlider.value);
+      volumeLabel.textContent = vol + '%';
+      volumeSlider.style.setProperty('--vol-pct', vol + '%');
+
+      // Throttled real-time update (every 50ms)
+      if (!volumeThrottleTimer) {
+        volumeThrottleTimer = setTimeout(() => {
+          send({ type: 'volume', value: parseInt(volumeSlider.value) });
+          volumeThrottleTimer = null;
+        }, 50);
+      }
     }
 
     function setVolume() {
+      // Final value on release
+      clearTimeout(volumeThrottleTimer);
+      volumeThrottleTimer = null;
       send({ type: 'volume', value: parseInt(volumeSlider.value) });
       setTimeout(() => { volumeChanging = false; }, 300);
     }
@@ -723,6 +847,27 @@
       playerStatus.textContent = text;
       playerStatus.className = 'status' + (isError ? ' error' : '');
     }
+
+    // Menu functions
+    function toggleMenu() {
+      menuDropdown.classList.toggle('hidden');
+    }
+
+    function closeMenu() {
+      menuDropdown.classList.add('hidden');
+    }
+
+    function kill() {
+      send({ type: 'kill' });
+      closeMenu();
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.settings-menu')) {
+        closeMenu();
+      }
+    });
   </script>
 </body>
 </html>

@@ -12,7 +12,17 @@ const HISTORY_FILE = "./history.json";
 const MAX_HISTORY = 10;
 
 let mpvProcess: Subprocess | null = null;
+let mpvSocket: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never | null = null;
 let currentMedia: { url: string; title: string } | null = null;
+
+// Current playback state (updated by mpv property observers)
+const playbackState = {
+  playing: false,
+  paused: false,
+  position: 0,
+  duration: 0,
+  volume: 100,
+};
 
 // Connected WebSocket clients
 const wsClients = new Set<ServerWebSocket<{ authenticated: boolean }>>();
@@ -104,7 +114,7 @@ app.get("/api/auth", async (c) => {
   return c.json({ authenticated: token === PIN });
 });
 
-// History endpoints (keep as HTTP for simplicity)
+// History endpoints
 app.get("/api/history", requireAuth, async (c) => {
   return c.json(await loadHistory());
 });
@@ -114,84 +124,6 @@ app.delete("/api/history", requireAuth, async (c) => {
   broadcast({ type: "history", data: [] });
   return c.json({ ok: true });
 });
-
-// MPV command (fire and forget)
-async function mpvCommand(command: any[]): Promise<boolean> {
-  try {
-    await Bun.connect({
-      unix: MPV_SOCKET,
-      socket: {
-        data() {},
-        open(socket) {
-          socket.write(JSON.stringify({ command }) + "\n");
-          socket.end();
-        },
-        error() {},
-      },
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Get property from mpv
-async function mpvGetProperty(property: string): Promise<any> {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => resolve(null), 300);
-    let buffer = "";
-    Bun.connect({
-      unix: MPV_SOCKET,
-      socket: {
-        data(socket, data) {
-          buffer += data.toString();
-          try {
-            const response = JSON.parse(buffer);
-            clearTimeout(timeout);
-            socket.end();
-            resolve(response.data);
-          } catch {}
-        },
-        open(socket) {
-          socket.write(JSON.stringify({ command: ["get_property", property] }) + "\n");
-        },
-        error() {
-          clearTimeout(timeout);
-          resolve(null);
-        },
-        close() {
-          clearTimeout(timeout);
-        },
-      },
-    }).catch(() => {
-      clearTimeout(timeout);
-      resolve(null);
-    });
-  });
-}
-
-// Get current playback state
-async function getPlaybackState() {
-  if (!mpvProcess) {
-    return { playing: false, current: null };
-  }
-
-  const [position, duration, paused, volume] = await Promise.all([
-    mpvGetProperty("time-pos"),
-    mpvGetProperty("duration"),
-    mpvGetProperty("pause"),
-    mpvGetProperty("volume"),
-  ]);
-
-  return {
-    playing: true,
-    paused: paused === true,
-    current: currentMedia,
-    position: position ?? 0,
-    duration: duration ?? 0,
-    volume: volume ?? 100,
-  };
-}
 
 // Broadcast to all authenticated WS clients
 function broadcast(message: any) {
@@ -203,6 +135,144 @@ function broadcast(message: any) {
   }
 }
 
+// Broadcast current playback state
+function broadcastStatus() {
+  broadcast({
+    type: "status",
+    data: {
+      playing: playbackState.playing,
+      paused: playbackState.paused,
+      current: currentMedia,
+      position: playbackState.position,
+      duration: playbackState.duration,
+      volume: playbackState.volume,
+    },
+  });
+}
+
+// Handle property change events from mpv
+function handleMpvEvent(msg: any) {
+  if (msg.event === "property-change") {
+    switch (msg.name) {
+      case "time-pos":
+        if (typeof msg.data === "number") {
+          playbackState.position = msg.data;
+        }
+        break;
+      case "duration":
+        if (typeof msg.data === "number") {
+          playbackState.duration = msg.data;
+        }
+        break;
+      case "pause":
+        playbackState.paused = msg.data === true;
+        break;
+      case "volume":
+        if (typeof msg.data === "number") {
+          playbackState.volume = Math.min(100, msg.data);
+        }
+        break;
+    }
+    // Broadcast on every property change for real-time updates
+    broadcastStatus();
+  }
+}
+
+// Connect to mpv IPC socket and subscribe to property changes
+async function connectToMpv(): Promise<boolean> {
+  return new Promise((resolve) => {
+    let buffer = "";
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(false);
+      }
+    }, 1000);
+
+    Bun.connect({
+      unix: MPV_SOCKET,
+      socket: {
+        data(socket, data) {
+          buffer += data.toString();
+          // Parse newline-delimited JSON messages
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const msg = JSON.parse(line);
+              handleMpvEvent(msg);
+            } catch {}
+          }
+        },
+        open(socket) {
+          mpvSocket = socket;
+          playbackState.playing = true;
+
+          // Subscribe to property changes
+          socket.write(JSON.stringify({ command: ["observe_property", 1, "time-pos"] }) + "\n");
+          socket.write(JSON.stringify({ command: ["observe_property", 2, "duration"] }) + "\n");
+          socket.write(JSON.stringify({ command: ["observe_property", 3, "pause"] }) + "\n");
+          socket.write(JSON.stringify({ command: ["observe_property", 4, "volume"] }) + "\n");
+
+          clearTimeout(timeout);
+          if (!resolved) {
+            resolved = true;
+            resolve(true);
+          }
+        },
+        close() {
+          mpvSocket = null;
+          playbackState.playing = false;
+          clearTimeout(timeout);
+          if (!resolved) {
+            resolved = true;
+            resolve(false);
+          }
+        },
+        error() {
+          mpvSocket = null;
+          clearTimeout(timeout);
+          if (!resolved) {
+            resolved = true;
+            resolve(false);
+          }
+        },
+      },
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (!resolved) {
+        resolved = true;
+        resolve(false);
+      }
+    });
+  });
+}
+
+// Send command to mpv
+function mpvCommand(command: any[]): boolean {
+  if (mpvSocket) {
+    mpvSocket.write(JSON.stringify({ command }) + "\n");
+    return true;
+  }
+  return false;
+}
+
+// Get current playback state (for initial sync)
+function getPlaybackState() {
+  return {
+    playing: playbackState.playing,
+    paused: playbackState.paused,
+    current: currentMedia,
+    position: playbackState.position,
+    duration: playbackState.duration,
+    volume: playbackState.volume,
+  };
+}
+
 // Handle WS commands
 async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, msg: any) {
   if (!ws.data.authenticated) {
@@ -210,7 +280,7 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
       ws.data.authenticated = true;
       ws.send(JSON.stringify({ type: "auth", ok: true }));
       // Send initial state
-      ws.send(JSON.stringify({ type: "status", data: await getPlaybackState() }));
+      ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
       ws.send(JSON.stringify({ type: "history", data: await loadHistory() }));
     } else {
       ws.send(JSON.stringify({ type: "auth", ok: false }));
@@ -222,11 +292,25 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
     case "play": {
       if (!msg.url) break;
 
+      // Close existing mpv connection
+      if (mpvSocket) {
+        mpvSocket.end();
+        mpvSocket = null;
+      }
+
+      // Kill existing mpv process
       if (mpvProcess) {
         mpvProcess.kill();
         mpvProcess = null;
         try { await unlink(MPV_SOCKET); } catch {}
       }
+
+      // Reset state
+      playbackState.playing = false;
+      playbackState.paused = false;
+      playbackState.position = 0;
+      playbackState.duration = 0;
+      playbackState.volume = 100;
 
       const titlePromise = fetchTitle(msg.url);
 
@@ -237,19 +321,36 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
           "--input-ipc-server=" + MPV_SOCKET,
           "--ytdl",
           "--volume=100",
-          // Fix YouTube seeking audio freeze (GitHub issue #8920)
+
+          // HARDWARE ACCELERATION (RPi5)
+          "--hwdec=auto-safe",
+          "--vo=drm",
+
+          // FIX: YouTube seeking audio freeze (GitHub issue #8920)
           "--demuxer-thread=no",
-          // Buffering for long videos
-          "--demuxer-max-bytes=150MiB",
-          "--demuxer-max-back-bytes=75MiB",
-          // Audio buffer to prevent glitches
-          "--audio-buffer=1",
-          // Hardware acceleration (auto-detect)
-          "--hwdec=auto",
-          // Force stream to be seekable
+
+          // CACHING - prevents initial stuttering
+          "--cache=yes",
+          "--cache-secs=30",
+          "--cache-pause-initial=yes",
+          "--cache-pause-wait=3",
+          "--demuxer-max-bytes=200MiB",
+          "--demuxer-max-back-bytes=100MiB",
+
+          // PERFORMANCE
+          "--video-sync=display-resample",
+          "--framedrop=vo",
+
+          // AUDIO
+          "--audio-buffer=0.5",
+
+          // NETWORK
+          "--network-timeout=30",
           "--force-seekable=yes",
-          // Prefer formats friendly to seeking (mp4/m4a, limit to 1080p)
-          "--ytdl-format=bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best",
+
+          // YOUTUBE: Prefer H.264 (hardware decoded) over VP9/AV1
+          "--ytdl-format=bestvideo[height<=1080][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<=1080][vcodec^=avc1]+bestaudio/best[height<=1080]",
+
           msg.url,
         ],
         stdout: "ignore",
@@ -260,9 +361,30 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
       currentMedia = { url: msg.url, title };
       await addToHistory(msg.url, title);
 
+      // Wait for mpv socket to be ready, then connect
+      const tryConnect = async (attempts = 0): Promise<void> => {
+        if (attempts > 20) return; // Give up after 2 seconds
+        const connected = await connectToMpv();
+        if (!connected && mpvProcess) {
+          await new Promise((r) => setTimeout(r, 100));
+          return tryConnect(attempts + 1);
+        }
+      };
+
+      // Start connection attempts
+      setTimeout(() => tryConnect(), 100);
+
       mpvProcess.exited.then(() => {
+        if (mpvSocket) {
+          mpvSocket.end();
+          mpvSocket = null;
+        }
         mpvProcess = null;
         currentMedia = null;
+        playbackState.playing = false;
+        playbackState.paused = false;
+        playbackState.position = 0;
+        playbackState.duration = 0;
         broadcast({ type: "status", data: { playing: false, current: null } });
       });
 
@@ -272,58 +394,63 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
     }
 
     case "pause":
-      await mpvCommand(["cycle", "pause"]);
+      mpvCommand(["cycle", "pause"]);
       break;
 
     case "stop":
-      await mpvCommand(["quit"]);
+      mpvCommand(["quit"]);
+      if (mpvSocket) {
+        mpvSocket.end();
+        mpvSocket = null;
+      }
       if (mpvProcess) {
         mpvProcess.kill();
         mpvProcess = null;
       }
       currentMedia = null;
+      playbackState.playing = false;
+      broadcast({ type: "status", data: { playing: false, current: null } });
+      break;
+
+    case "kill":
+      // Force kill (SIGKILL) - use when stop doesn't work
+      if (mpvSocket) {
+        mpvSocket.end();
+        mpvSocket = null;
+      }
+      if (mpvProcess) {
+        mpvProcess.kill(9); // SIGKILL
+        mpvProcess = null;
+      }
+      currentMedia = null;
+      playbackState.playing = false;
       broadcast({ type: "status", data: { playing: false, current: null } });
       break;
 
     case "seek":
       if (typeof msg.percent === "number") {
-        await mpvCommand(["seek", msg.percent, "absolute-percent"]);
+        mpvCommand(["seek", msg.percent, "absolute-percent"]);
       }
       break;
 
     case "skip":
-      // Relative seek in seconds (faster, no audio issues)
       if (typeof msg.seconds === "number") {
-        await mpvCommand(["seek", msg.seconds, "relative"]);
+        mpvCommand(["seek", msg.seconds, "relative"]);
       }
       break;
 
     case "volume":
       if (typeof msg.value === "number") {
         const vol = Math.max(0, Math.min(100, msg.value));
-        await mpvCommand(["set_property", "volume", vol]);
+        mpvCommand(["set_property", "volume", vol]);
       }
       break;
 
     case "status":
-      ws.send(JSON.stringify({ type: "status", data: await getPlaybackState() }));
+      ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
       break;
   }
 }
-
-// State broadcast interval
-let stateInterval: Timer | null = null;
-
-function startStateBroadcast() {
-  if (stateInterval) return;
-  stateInterval = setInterval(async () => {
-    if (wsClients.size > 0 && mpvProcess) {
-      broadcast({ type: "status", data: await getPlaybackState() });
-    }
-  }, 500); // 500ms for smoother seek slider
-}
-
-startStateBroadcast();
 
 console.log(`Raspcast running on http://0.0.0.0:${PORT}`);
 
