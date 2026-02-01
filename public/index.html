@@ -240,6 +240,7 @@
       display: flex;
       align-items: stretch;
       gap: 20px;
+      min-height: 200px;
     }
 
     .play-section {
@@ -298,13 +299,13 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
       width: 80px;
       padding: 8px 0;
     }
 
     .volume-icon {
       color: #888;
+      flex-shrink: 0;
     }
 
     .volume-icon svg { width: 24px; height: 24px; }
@@ -314,19 +315,24 @@
       color: #888;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+      margin-top: 8px;
     }
 
     .volume-slider-wrap {
+      flex: 1;
+      min-height: 120px;
       width: 80px;
-      height: 180px;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
+      margin: 8px 0;
     }
 
     .volume-slider {
-      width: 160px;
+      /* Use CSS custom property for dynamic height */
+      width: var(--slider-length, 200px);
       height: 16px;
       transform: rotate(-90deg);
       transform-origin: center center;
@@ -341,8 +347,8 @@
 
     .volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       background: #fff;
       border-radius: 50%;
       cursor: pointer;
@@ -551,6 +557,7 @@
     const menuDropdown = $('menu-dropdown');
     const seekSlider = $('seek-slider');
     const volumeSlider = $('volume-slider');
+    const volumeSliderWrap = volumeSlider.parentElement;
     const volumeLabel = $('volume-label');
     const nowPlayingTitle = $('now-playing-title');
     const timeCurrent = $('time-current');
@@ -569,12 +576,21 @@
     let pendingCommands = [];
     let volumeThrottleTimer = null;
 
+    // Resize volume slider to fit container
+    function resizeVolumeSlider() {
+      const wrapHeight = volumeSliderWrap.clientHeight;
+      if (wrapHeight > 0) {
+        volumeSlider.style.setProperty('--slider-length', (wrapHeight - 20) + 'px');
+      }
+    }
+
     // Start
     init();
 
     pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
     urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') play(); });
     urlInputMini.addEventListener('keydown', e => { if (e.key === 'Enter') playMini(); });
+    window.addEventListener('resize', resizeVolumeSlider);
 
     function init() {
       if (storedPin) {
@@ -700,6 +716,8 @@
       urlSection.querySelector('.url-collapsed').classList.remove('hidden');
       nowPlayingLabel.textContent = 'Loading...';
       nowPlayingLabel.classList.add('loading');
+      // Resize slider after layout settles
+      requestAnimationFrame(resizeVolumeSlider);
     }
 
     function exitPlayingMode() {

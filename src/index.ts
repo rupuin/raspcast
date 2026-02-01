@@ -324,16 +324,13 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
 
           // HARDWARE ACCELERATION (RPi5)
           "--hwdec=auto-safe",
-          "--vo=drm",
 
           // FIX: YouTube seeking audio freeze (GitHub issue #8920)
           "--demuxer-thread=no",
 
-          // CACHING - prevents initial stuttering
+          // CACHING
           "--cache=yes",
           "--cache-secs=30",
-          "--cache-pause-initial=yes",
-          "--cache-pause-wait=3",
           "--demuxer-max-bytes=200MiB",
           "--demuxer-max-back-bytes=100MiB",
 
