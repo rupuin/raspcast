@@ -239,8 +239,7 @@
     .main-controls {
       display: flex;
       align-items: stretch;
-      gap: 20px;
-      min-height: 200px;
+      gap: 16px;
     }
 
     .play-section {
@@ -294,12 +293,12 @@
     .btn-stop-small:hover { background: #2a2a2a; color: #f87171; }
     .btn-stop-small svg { width: 16px; height: 16px; }
 
-    /* Volume Slider (Vertical) */
+    /* Custom Vertical Volume Slider */
     .volume-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 80px;
+      width: 60px;
       padding: 8px 0;
     }
 
@@ -308,52 +307,50 @@
       flex-shrink: 0;
     }
 
-    .volume-icon svg { width: 24px; height: 24px; }
+    .volume-icon svg { width: 20px; height: 20px; }
 
     .volume-label {
-      font-size: 13px;
+      font-size: 12px;
       color: #888;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
       flex-shrink: 0;
-      margin-top: 8px;
+      margin-top: 6px;
     }
 
-    .volume-slider-wrap {
+    .volume-track {
       flex: 1;
-      min-height: 120px;
-      width: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      margin: 8px 0;
-    }
-
-    .volume-slider {
-      /* Use CSS custom property for dynamic height */
-      width: var(--slider-length, 200px);
-      height: 16px;
-      transform: rotate(-90deg);
-      transform-origin: center center;
-      -webkit-appearance: none;
-      appearance: none;
-      background: linear-gradient(to right, #e11d48 0%, #e11d48 var(--vol-pct, 100%), #2a2a2a var(--vol-pct, 100%), #2a2a2a 100%);
+      width: 16px;
+      min-height: 140px;
+      background: #2a2a2a;
       border-radius: 8px;
-      outline: none;
+      position: relative;
+      margin: 10px 0;
+      cursor: pointer;
       touch-action: none;
-      position: absolute;
     }
 
-    .volume-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 44px;
-      height: 44px;
+    .volume-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #e11d48;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .volume-thumb {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      width: 28px;
+      height: 28px;
       background: #fff;
-      border-radius: 50%;
-      cursor: pointer;
       border: 3px solid #e11d48;
+      border-radius: 50%;
       box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      pointer-events: none;
     }
 
     /* History */
@@ -451,14 +448,14 @@
     <div class="card url-section" id="url-section">
       <div class="url-expanded">
         <input type="text" id="url-input" placeholder="Paste video URL..." autocomplete="off" autocapitalize="off">
-        <button class="btn-primary" onclick="play()">
+        <button class="btn-primary" onclick="playUrl()">
           <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           Cast
         </button>
       </div>
       <div class="url-collapsed hidden">
         <input type="text" id="url-input-mini" placeholder="Paste URL..." autocomplete="off" autocapitalize="off">
-        <button class="btn-add" onclick="playMini()">
+        <button class="btn-add" onclick="playUrlMini()">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
         </button>
       </div>
@@ -476,7 +473,7 @@
             <svg fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
           </button>
           <div class="menu-dropdown hidden" id="menu-dropdown">
-            <button class="menu-item" onclick="kill()">
+            <button class="menu-item" onclick="cmdKill()">
               <svg fill="currentColor" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
               Kill Process
             </button>
@@ -486,8 +483,7 @@
 
       <!-- Seek -->
       <div class="seek-section">
-        <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1"
-          oninput="onSeekInput()" onchange="seekTo()" ontouchend="seekTo()">
+        <input type="range" class="seek-slider" id="seek-slider" min="0" max="100" value="0" step="0.1">
         <div class="time-display">
           <span id="time-current">0:00</span>
           <span id="time-duration">0:00</span>
@@ -497,19 +493,19 @@
       <!-- Play + Volume -->
       <div class="main-controls">
         <div class="play-section">
-          <button class="btn-skip" onclick="skip(-10)" title="-10s">
+          <button class="btn-skip" onclick="cmdSkip(-10)" title="-10s">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
           </button>
           <div class="play-group">
-            <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
+            <button class="btn-playpause" id="btn-playpause" onclick="cmdPause()">
               <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
               <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             </button>
-            <button class="btn-stop-small" onclick="stop()" title="Stop">
+            <button class="btn-stop-small" onclick="cmdStop()" title="Stop">
               <svg fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
             </button>
           </div>
-          <button class="btn-skip" onclick="skip(10)" title="+10s">
+          <button class="btn-skip" onclick="cmdSkip(10)" title="+10s">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
           </button>
         </div>
@@ -518,9 +514,9 @@
           <div class="volume-icon">
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
           </div>
-          <div class="volume-slider-wrap">
-            <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100"
-              oninput="onVolumeInput()" onchange="setVolume()" ontouchend="setVolume()">
+          <div class="volume-track" id="volume-track">
+            <div class="volume-fill" id="volume-fill"></div>
+            <div class="volume-thumb" id="volume-thumb"></div>
           </div>
           <div class="volume-label" id="volume-label">100%</div>
         </div>
@@ -554,56 +550,95 @@
     const authStatus = $('auth-status');
     const playerStatus = $('player-status');
     const nowPlayingLabel = $('now-playing-label');
+    const nowPlayingTitle = $('now-playing-title');
     const menuDropdown = $('menu-dropdown');
     const seekSlider = $('seek-slider');
-    const volumeSlider = $('volume-slider');
-    const volumeSliderWrap = volumeSlider.parentElement;
-    const volumeLabel = $('volume-label');
-    const nowPlayingTitle = $('now-playing-title');
     const timeCurrent = $('time-current');
     const timeDuration = $('time-duration');
     const historyList = $('history-list');
     const iconPlay = $('icon-play');
     const iconPause = $('icon-pause');
+    const volumeTrack = $('volume-track');
+    const volumeFill = $('volume-fill');
+    const volumeThumb = $('volume-thumb');
+    const volumeLabel = $('volume-label');
 
     let ws = null;
     let isPlaying = false;
+    let currentDuration = 0;
+    let currentVolume = 100;
     let seeking = false;
-    let volumeChanging = false;
-    let reconnectTimer = null;
+    let volumeDragging = false;
+    let seekThrottle = null;
+    let volumeThrottle = null;
     let storedPin = localStorage.getItem('pin') || '';
-    let lastConfirmedVolume = 100;
-    let pendingCommands = [];
-    let volumeThrottleTimer = null;
 
-    // Resize volume slider to fit container
-    function resizeVolumeSlider() {
-      const wrapHeight = volumeSliderWrap.clientHeight;
-      if (wrapHeight > 0) {
-        volumeSlider.style.setProperty('--slider-length', (wrapHeight - 20) + 'px');
-      }
-    }
-
-    // Start
-    init();
-
+    // Init
     pinInput.addEventListener('keydown', e => { if (e.key === 'Enter') authenticate(); });
-    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') play(); });
-    urlInputMini.addEventListener('keydown', e => { if (e.key === 'Enter') playMini(); });
-    window.addEventListener('resize', resizeVolumeSlider);
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') playUrl(); });
+    urlInputMini.addEventListener('keydown', e => { if (e.key === 'Enter') playUrlMini(); });
 
-    function init() {
-      if (storedPin) {
-        connectWs(storedPin);
+    // Seek slider events
+    seekSlider.addEventListener('input', onSeekInput);
+    seekSlider.addEventListener('change', onSeekEnd);
+    seekSlider.addEventListener('touchend', onSeekEnd);
+
+    // Volume slider events (custom)
+    volumeTrack.addEventListener('mousedown', onVolumeStart);
+    volumeTrack.addEventListener('touchstart', onVolumeStart, { passive: false });
+
+    if (storedPin) {
+      connectWs();
+    }
+
+    // ==================== HTTP Commands ====================
+
+    async function cmd(type, data = {}) {
+      try {
+        const res = await fetch('/api/cmd', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, ...data })
+        });
+        return res.ok;
+      } catch {
+        return false;
       }
     }
 
-    function connectWs(pin) {
+    function playUrl() {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      cmd('play', { url });
+      urlInput.value = '';
+    }
+
+    function playUrlMini() {
+      const url = urlInputMini.value.trim();
+      if (!url) return;
+      cmd('play', { url });
+      urlInputMini.value = '';
+    }
+
+    function playFromHistory(url) {
+      cmd('play', { url });
+    }
+
+    function cmdPause() { cmd('pause'); }
+    function cmdStop() { cmd('stop'); }
+    function cmdKill() { cmd('kill'); closeMenu(); }
+    function cmdSkip(seconds) { cmd('skip', { seconds }); }
+    function cmdSeek(percent) { cmd('seek', { percent }); }
+    function cmdVolume(value) { cmd('volume', { value }); }
+
+    // ==================== WebSocket (status only) ====================
+
+    function connectWs() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'auth', pin }));
+        ws.send(JSON.stringify({ type: 'auth', pin: storedPin }));
       };
 
       ws.onmessage = (e) => {
@@ -612,14 +647,10 @@
       };
 
       ws.onclose = () => {
-        if (storedPin) {
-          reconnectTimer = setTimeout(() => connectWs(storedPin), 2000);
-        }
+        setTimeout(connectWs, 2000);
       };
 
-      ws.onerror = () => {
-        setStatus('Connection error', true);
-      };
+      ws.onerror = () => {};
     }
 
     function handleMessage(msg) {
@@ -627,8 +658,6 @@
         case 'auth':
           if (msg.ok) {
             showPlayer();
-            setStatus('');
-            flushPendingCommands();
           } else {
             authStatus.textContent = 'Invalid PIN';
             authStatus.className = 'status error';
@@ -661,7 +690,7 @@
           nowPlayingTitle.textContent = data.current.title;
         }
 
-        // Update loading state
+        // Loading state
         if (data.duration > 0) {
           nowPlayingLabel.textContent = 'Now Playing';
           nowPlayingLabel.classList.remove('loading');
@@ -671,22 +700,21 @@
           nowPlayingLabel.textContent = 'Loading...';
           nowPlayingLabel.classList.add('loading');
         }
+
+        // Seek (only if not dragging)
         if (!seeking && data.duration > 0) {
           const pct = (data.position / data.duration) * 100;
           seekSlider.value = pct;
           timeCurrent.textContent = formatTime(data.position);
         }
 
-        // Update volume (only if not dragging and not seeking)
-        if (!volumeChanging && !seeking) {
-          const vol = Math.min(100, Math.round(data.volume));
-          lastConfirmedVolume = vol;
-          volumeSlider.value = vol;
-          volumeLabel.textContent = vol + '%';
-          volumeSlider.style.setProperty('--vol-pct', vol + '%');
+        // Volume (only if not dragging)
+        if (!volumeDragging) {
+          currentVolume = Math.min(100, Math.round(data.volume));
+          updateVolumeUI(currentVolume);
         }
 
-        // Update play/pause icon
+        // Play/pause icon
         iconPlay.classList.toggle('hidden', !data.paused);
         iconPause.classList.toggle('hidden', data.paused);
       } else {
@@ -695,13 +723,14 @@
       }
     }
 
+    // ==================== Auth ====================
+
     function authenticate() {
       const pin = pinInput.value;
       if (!pin) return;
-
       storedPin = pin;
       localStorage.setItem('pin', pin);
-      connectWs(pin);
+      connectWs();
     }
 
     function showPlayer() {
@@ -716,8 +745,6 @@
       urlSection.querySelector('.url-collapsed').classList.remove('hidden');
       nowPlayingLabel.textContent = 'Loading...';
       nowPlayingLabel.classList.add('loading');
-      // Resize slider after layout settles
-      requestAnimationFrame(resizeVolumeSlider);
     }
 
     function exitPlayingMode() {
@@ -734,6 +761,121 @@
       closeMenu();
     }
 
+    // ==================== Seek ====================
+
+    function onSeekInput() {
+      seeking = true;
+      // Preview time
+      if (currentDuration > 0) {
+        const pos = (parseFloat(seekSlider.value) / 100) * currentDuration;
+        timeCurrent.textContent = formatTime(pos);
+      }
+      // Throttled live seek
+      if (!seekThrottle) {
+        seekThrottle = setTimeout(() => {
+          cmdSeek(parseFloat(seekSlider.value));
+          seekThrottle = null;
+        }, 100);
+      }
+    }
+
+    function onSeekEnd() {
+      clearTimeout(seekThrottle);
+      seekThrottle = null;
+      cmdSeek(parseFloat(seekSlider.value));
+      setTimeout(() => { seeking = false; }, 300);
+    }
+
+    // ==================== Volume (Custom Vertical Slider) ====================
+
+    function onVolumeStart(e) {
+      e.preventDefault();
+      volumeDragging = true;
+      updateVolumeFromEvent(e);
+
+      document.addEventListener('mousemove', onVolumeMove);
+      document.addEventListener('mouseup', onVolumeEnd);
+      document.addEventListener('touchmove', onVolumeMove, { passive: false });
+      document.addEventListener('touchend', onVolumeEnd);
+    }
+
+    function onVolumeMove(e) {
+      if (!volumeDragging) return;
+      e.preventDefault();
+      updateVolumeFromEvent(e);
+    }
+
+    function onVolumeEnd() {
+      volumeDragging = false;
+      document.removeEventListener('mousemove', onVolumeMove);
+      document.removeEventListener('mouseup', onVolumeEnd);
+      document.removeEventListener('touchmove', onVolumeMove);
+      document.removeEventListener('touchend', onVolumeEnd);
+
+      // Final volume send
+      clearTimeout(volumeThrottle);
+      cmdVolume(currentVolume);
+    }
+
+    function updateVolumeFromEvent(e) {
+      const rect = volumeTrack.getBoundingClientRect();
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const y = clientY - rect.top;
+      const pct = Math.max(0, Math.min(100, 100 - (y / rect.height) * 100));
+      currentVolume = Math.round(pct);
+      updateVolumeUI(currentVolume);
+
+      // Throttled live volume
+      if (!volumeThrottle) {
+        volumeThrottle = setTimeout(() => {
+          cmdVolume(currentVolume);
+          volumeThrottle = null;
+        }, 50);
+      }
+    }
+
+    function updateVolumeUI(vol) {
+      volumeFill.style.height = vol + '%';
+      volumeThumb.style.bottom = vol + '%';
+      volumeLabel.textContent = vol + '%';
+    }
+
+    // ==================== History ====================
+
+    function renderHistory(history) {
+      if (!history || history.length === 0) {
+        historyList.innerHTML = '<div class="history-empty">No history yet</div>';
+        return;
+      }
+      historyList.innerHTML = history.map(item => `
+        <div class="history-item" onclick="playFromHistory('${item.url.replace(/'/g, "\\'")}')">
+          <div class="history-item-title">${escapeHtml(item.title)}</div>
+        </div>
+      `).join('');
+    }
+
+    async function clearHistory() {
+      await fetch('/api/history', { method: 'DELETE' });
+    }
+
+    // ==================== Menu ====================
+
+    function toggleMenu() {
+      menuDropdown.classList.toggle('hidden');
+    }
+
+    function closeMenu() {
+      menuDropdown.classList.add('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.settings-menu')) {
+        closeMenu();
+      }
+    });
+
+    // ==================== Helpers ====================
+
     function formatTime(secs) {
       const h = Math.floor(secs / 3600);
       const m = Math.floor((secs % 3600) / 60);
@@ -744,148 +886,11 @@
       return m + ':' + s.toString().padStart(2, '0');
     }
 
-    function send(msg) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(msg));
-        return true;
-      } else {
-        // Queue command for when connection opens
-        pendingCommands.push(msg);
-        return false;
-      }
-    }
-
-    function flushPendingCommands() {
-      while (pendingCommands.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
-        const msg = pendingCommands.shift();
-        ws.send(JSON.stringify(msg));
-      }
-    }
-
-    function play(url) {
-      const inputUrl = urlInput.value.trim();
-      url = url || inputUrl;
-      if (!url) return;
-
-      if (send({ type: 'play', url })) {
-        if (!arguments[0]) urlInput.value = ''; // Only clear if from input, not history
-        setStatus('Starting...');
-      } else {
-        setStatus('Connecting...', true);
-      }
-    }
-
-    function playMini() {
-      const url = urlInputMini.value.trim();
-      if (!url) return;
-
-      if (send({ type: 'play', url })) {
-        urlInputMini.value = '';
-      } else {
-        setStatus('Connecting...', true);
-      }
-    }
-
-    function togglePause() {
-      send({ type: 'pause' });
-    }
-
-    function skip(seconds) {
-      send({ type: 'skip', seconds });
-    }
-
-    let currentDuration = 0;
-
-    function onSeekInput() {
-      seeking = true;
-      // Show preview time while dragging
-      if (currentDuration > 0) {
-        const previewPos = (parseFloat(seekSlider.value) / 100) * currentDuration;
-        timeCurrent.textContent = formatTime(previewPos);
-      }
-    }
-
-    function seekTo() {
-      send({ type: 'seek', percent: parseFloat(seekSlider.value) });
-      setTimeout(() => { seeking = false; }, 500);
-    }
-
-    function stop() {
-      send({ type: 'stop' });
-    }
-
-    function onVolumeInput() {
-      volumeChanging = true;
-      const vol = parseInt(volumeSlider.value);
-      volumeLabel.textContent = vol + '%';
-      volumeSlider.style.setProperty('--vol-pct', vol + '%');
-
-      // Throttled real-time update (every 50ms)
-      if (!volumeThrottleTimer) {
-        volumeThrottleTimer = setTimeout(() => {
-          send({ type: 'volume', value: parseInt(volumeSlider.value) });
-          volumeThrottleTimer = null;
-        }, 50);
-      }
-    }
-
-    function setVolume() {
-      // Final value on release
-      clearTimeout(volumeThrottleTimer);
-      volumeThrottleTimer = null;
-      send({ type: 'volume', value: parseInt(volumeSlider.value) });
-      setTimeout(() => { volumeChanging = false; }, 300);
-    }
-
-    function renderHistory(history) {
-      if (!history || history.length === 0) {
-        historyList.innerHTML = '<div class="history-empty">No history yet</div>';
-        return;
-      }
-      historyList.innerHTML = history.map(item => `
-        <div class="history-item" onclick="play('${item.url.replace(/'/g, "\\'")}')">
-          <div class="history-item-title">${escapeHtml(item.title)}</div>
-        </div>
-      `).join('');
-    }
-
-    async function clearHistory() {
-      try {
-        await fetch('/api/history', { method: 'DELETE' });
-      } catch {}
-    }
-
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
-
-    function setStatus(text, isError) {
-      playerStatus.textContent = text;
-      playerStatus.className = 'status' + (isError ? ' error' : '');
-    }
-
-    // Menu functions
-    function toggleMenu() {
-      menuDropdown.classList.toggle('hidden');
-    }
-
-    function closeMenu() {
-      menuDropdown.classList.add('hidden');
-    }
-
-    function kill() {
-      send({ type: 'kill' });
-      closeMenu();
-    }
-
-    // Close menu when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.settings-menu')) {
-        closeMenu();
-      }
-    });
   </script>
 </body>
 </html>

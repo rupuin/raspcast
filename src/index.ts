@@ -125,6 +125,13 @@ app.delete("/api/history", requireAuth, async (c) => {
   return c.json({ ok: true });
 });
 
+// HTTP Command endpoint (more reliable than WS for commands)
+app.post("/api/cmd", requireAuth, async (c) => {
+  const body = await c.req.json();
+  await handleCommand(body);
+  return c.json({ ok: true });
+});
+
 // Broadcast to all authenticated WS clients
 function broadcast(message: any) {
   const data = JSON.stringify(message);
@@ -273,21 +280,8 @@ function getPlaybackState() {
   };
 }
 
-// Handle WS commands
-async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, msg: any) {
-  if (!ws.data.authenticated) {
-    if (msg.type === "auth" && msg.pin === PIN) {
-      ws.data.authenticated = true;
-      ws.send(JSON.stringify({ type: "auth", ok: true }));
-      // Send initial state
-      ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
-      ws.send(JSON.stringify({ type: "history", data: await loadHistory() }));
-    } else {
-      ws.send(JSON.stringify({ type: "auth", ok: false }));
-    }
-    return;
-  }
-
+// Handle commands (shared between HTTP and WS)
+async function handleCommand(msg: any) {
   switch (msg.type) {
     case "play": {
       if (!msg.url) break;
@@ -442,11 +436,32 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
         mpvCommand(["set_property", "volume", vol]);
       }
       break;
-
-    case "status":
-      ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
-      break;
   }
+}
+
+// Handle WS messages (auth + commands)
+async function handleWsMessage(ws: ServerWebSocket<{ authenticated: boolean }>, msg: any) {
+  if (!ws.data.authenticated) {
+    if (msg.type === "auth" && msg.pin === PIN) {
+      ws.data.authenticated = true;
+      ws.send(JSON.stringify({ type: "auth", ok: true }));
+      // Send initial state
+      ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
+      ws.send(JSON.stringify({ type: "history", data: await loadHistory() }));
+    } else {
+      ws.send(JSON.stringify({ type: "auth", ok: false }));
+    }
+    return;
+  }
+
+  // Status request returns directly to requester
+  if (msg.type === "status") {
+    ws.send(JSON.stringify({ type: "status", data: getPlaybackState() }));
+    return;
+  }
+
+  // All other commands
+  await handleCommand(msg);
 }
 
 console.log(`Raspcast running on http://0.0.0.0:${PORT}`);
@@ -469,7 +484,7 @@ export default {
     message(ws: ServerWebSocket<{ authenticated: boolean }>, message: string) {
       try {
         const msg = JSON.parse(message);
-        handleWsCommand(ws, msg);
+        handleWsMessage(ws, msg);
       } catch {}
     },
     close(ws: ServerWebSocket<{ authenticated: boolean }>) {
