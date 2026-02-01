@@ -218,8 +218,9 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      width: 60px;
+      gap: 6px;
+      width: 70px;
+      padding: 8px 0;
     }
 
     .volume-icon {
@@ -228,46 +229,42 @@
 
     .volume-icon svg { width: 24px; height: 24px; }
 
+    .volume-label {
+      font-size: 13px;
+      color: #888;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
     .volume-slider-wrap {
-      height: 200px;
+      height: 220px;
       width: 60px;
       display: flex;
       align-items: center;
       justify-content: center;
-      position: relative;
     }
 
     .volume-slider {
-      width: 180px;
-      height: 10px;
+      width: 200px;
+      height: 12px;
       transform: rotate(-90deg);
-      transform-origin: center;
-      background: #2a2a2a;
-      border-radius: 5px;
-    }
-
-    .volume-slider::-webkit-slider-runnable-track {
-      height: 10px;
-      background: #2a2a2a;
-      border-radius: 5px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, #e11d48 0%, #e11d48 var(--vol-pct, 100%), #2a2a2a var(--vol-pct, 100%), #2a2a2a 100%);
+      border-radius: 6px;
+      outline: none;
+      touch-action: none;
     }
 
     .volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 32px;
-      height: 32px;
-      background: #e11d48;
+      width: 36px;
+      height: 36px;
+      background: #fff;
       border-radius: 50%;
       cursor: pointer;
-      border: none;
-      margin-top: -11px;
-    }
-
-    .volume-label {
-      font-size: 12px;
-      color: #888;
-      text-align: center;
-      font-variant-numeric: tabular-nums;
+      border: 3px solid #e11d48;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
 
     /* Stop Controls */
@@ -438,7 +435,7 @@
             <svg fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
           </div>
           <div class="volume-slider-wrap">
-            <input type="range" class="volume-slider" id="volume-slider" min="0" max="150" value="100"
+            <input type="range" class="volume-slider" id="volume-slider" min="0" max="100" value="100"
               oninput="onVolumeInput()" onchange="setVolume()" ontouchend="setVolume()">
           </div>
           <div class="volume-label" id="volume-label">100%</div>
@@ -586,8 +583,10 @@
 
         // Update volume (only if not dragging)
         if (!volumeChanging) {
-          volumeSlider.value = data.volume;
-          volumeLabel.textContent = Math.round(data.volume) + '%';
+          const vol = Math.min(100, Math.round(data.volume));
+          volumeSlider.value = vol;
+          volumeLabel.textContent = vol + '%';
+          volumeSlider.style.setProperty('--vol-pct', vol + '%');
         }
 
         // Update play/pause icon
@@ -688,6 +687,7 @@
     function onVolumeInput() {
       volumeChanging = true;
       volumeLabel.textContent = volumeSlider.value + '%';
+      volumeSlider.style.setProperty('--vol-pct', volumeSlider.value + '%');
     }
 
     function setVolume() {

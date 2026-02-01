@@ -300,7 +300,7 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
 
     case "volume":
       if (typeof msg.value === "number") {
-        const vol = Math.max(0, Math.min(150, msg.value));
+        const vol = Math.max(0, Math.min(100, msg.value));
         await mpvCommand(["set_property", "volume", vol]);
       }
       break;
