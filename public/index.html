@@ -186,11 +186,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      gap: 12px;
     }
 
+    .btn-skip {
+      width: 48px;
+      height: 48px;
+      background: #1f1f1f;
+      color: #aaa;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    .btn-skip:hover { background: #2a2a2a; color: #fff; }
+    .btn-skip svg { width: 20px; height: 20px; }
+
     .btn-playpause {
-      width: 80px;
-      height: 80px;
+      width: 72px;
+      height: 72px;
       background: #e11d48;
       color: white;
       border-radius: 50%;
@@ -198,26 +211,26 @@
     }
 
     .btn-playpause:hover { background: #be123c; }
-    .btn-playpause svg { width: 36px; height: 36px; }
+    .btn-playpause svg { width: 32px; height: 32px; }
 
     /* Volume Slider (Vertical) */
     .volume-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      width: 50px;
+      gap: 8px;
+      width: 60px;
     }
 
     .volume-icon {
-      color: #666;
+      color: #888;
     }
 
-    .volume-icon svg { width: 22px; height: 22px; }
+    .volume-icon svg { width: 24px; height: 24px; }
 
     .volume-slider-wrap {
-      height: 160px;
-      width: 50px;
+      height: 200px;
+      width: 60px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -225,15 +238,29 @@
     }
 
     .volume-slider {
-      width: 160px;
-      height: 8px;
+      width: 180px;
+      height: 10px;
       transform: rotate(-90deg);
       transform-origin: center;
+      background: #2a2a2a;
+      border-radius: 5px;
+    }
+
+    .volume-slider::-webkit-slider-runnable-track {
+      height: 10px;
+      background: #2a2a2a;
+      border-radius: 5px;
     }
 
     .volume-slider::-webkit-slider-thumb {
-      width: 26px;
-      height: 26px;
+      -webkit-appearance: none;
+      width: 32px;
+      height: 32px;
+      background: #e11d48;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      margin-top: -11px;
     }
 
     .volume-label {
@@ -394,9 +421,15 @@
       <!-- Play + Volume -->
       <div class="main-controls">
         <div class="play-section">
+          <button class="btn-skip" onclick="skip(-10)" title="-10s">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          </button>
           <button class="btn-playpause" id="btn-playpause" onclick="togglePause()">
             <svg id="icon-play" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
             <svg id="icon-pause" class="hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <button class="btn-skip" onclick="skip(10)" title="+10s">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/></svg>
           </button>
         </div>
 
@@ -630,6 +663,10 @@
 
     function togglePause() {
       send({ type: 'pause' });
+    }
+
+    function skip(seconds) {
+      send({ type: 'skip', seconds });
     }
 
     function onSeekInput() {

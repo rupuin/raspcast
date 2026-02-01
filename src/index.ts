@@ -238,14 +238,17 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
           "--ytdl",
           "--volume=100",
           // Fix YouTube seeking audio freeze (GitHub issue #8920)
-          // YouTube's chunked streaming conflicts with mpv's threaded demuxer
           "--demuxer-thread=no",
-          // Still allow some read-ahead buffering
+          // Buffering for long videos
           "--demuxer-max-bytes=150MiB",
-          "--demuxer-max-back-bytes=50MiB",
-          // Audio buffer to prevent glitches (important for Pi)
+          "--demuxer-max-back-bytes=75MiB",
+          // Audio buffer to prevent glitches
           "--audio-buffer=1",
-          // Prefer formats friendly to seeking (mp4 container, avoid VP9/AV1 on Pi)
+          // Hardware acceleration (auto-detect)
+          "--hwdec=auto",
+          // Force stream to be seekable
+          "--force-seekable=yes",
+          // Prefer formats friendly to seeking (mp4/m4a, limit to 1080p)
           "--ytdl-format=bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best",
           msg.url,
         ],
@@ -285,6 +288,13 @@ async function handleWsCommand(ws: ServerWebSocket<{ authenticated: boolean }>, 
     case "seek":
       if (typeof msg.percent === "number") {
         await mpvCommand(["seek", msg.percent, "absolute-percent"]);
+      }
+      break;
+
+    case "skip":
+      // Relative seek in seconds (faster, no audio issues)
+      if (typeof msg.seconds === "number") {
+        await mpvCommand(["seek", msg.seconds, "relative"]);
       }
       break;
 
