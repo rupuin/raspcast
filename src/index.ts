@@ -320,11 +320,15 @@ async function handleCommand(msg: any) {
         mpvSocket = null;
       }
 
-      // Kill existing mpv process
+      // Kill existing mpv process and wait for it to fully exit
       if (mpvProcess) {
-        mpvProcess.kill();
-        mpvProcess = null;
+        console.log("[mpv] Terminating existing process...");
+        const oldProcess = mpvProcess;
+        mpvProcess = null; // Clear reference immediately
+        oldProcess.kill();
+        await oldProcess.exited; // Wait for it to actually exit
         try { await unlink(MPV_SOCKET); } catch {}
+        console.log("[mpv] Old process terminated");
       }
 
       // Reset state
