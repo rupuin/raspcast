@@ -10,10 +10,13 @@ const PIN = process.env.PIN || "1234";
 const MPV_SOCKET = "/tmp/mpv-socket";
 const HISTORY_FILE = "./history.json";
 const MAX_HISTORY = 10;
+const MAX_SUBTITLE_SIZE_BYTES = 5 * 1024 * 1024;
+const SUBTITLE_EXTENSIONS = new Set(["vtt", "srt", "ass", "ssa", "sub", "txt"]);
 
 let mpvProcess: Subprocess | null = null;
 let mpvSocket: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never | null = null;
 let currentMedia: { url: string; title: string } | null = null;
+const subtitleTempFiles = new Set<string>();
 
 // Current playback state (updated by mpv property observers)
 const playbackState = {
@@ -53,6 +56,65 @@ async function addToHistory(url: string, title: string): Promise<void> {
   const filtered = history.filter((h) => h.url !== url);
   filtered.unshift({ url, title, timestamp: Date.now() });
   await saveHistory(filtered.slice(0, MAX_HISTORY));
+}
+
+async function cleanupSubtitleFiles(): Promise<void> {
+  const files = [...subtitleTempFiles];
+  subtitleTempFiles.clear();
+  await Promise.all(files.map((file) => unlink(file).catch(() => {})));
+}
+
+function guessSubtitleExtension(url: URL, contentType: string | null): string {
+  const mime = (contentType || "").toLowerCase();
+  if (mime.includes("vtt")) return "vtt";
+  if (mime.includes("srt") || mime.includes("subrip")) return "srt";
+  if (mime.includes("ass")) return "ass";
+  if (mime.includes("ssa")) return "ssa";
+
+  const match = url.pathname.toLowerCase().match(/\.([a-z0-9]+)$/);
+  const ext = match?.[1];
+  if (ext && SUBTITLE_EXTENSIONS.has(ext)) return ext;
+  return "vtt";
+}
+
+async function downloadSubtitle(urlText: string): Promise<string> {
+  let subtitleUrl: URL;
+  try {
+    subtitleUrl = new URL(urlText);
+  } catch {
+    throw new Error("Invalid subtitle URL");
+  }
+
+  if (subtitleUrl.protocol !== "https:" && subtitleUrl.protocol !== "http:") {
+    throw new Error("Subtitle URL must start with http:// or https://");
+  }
+
+  const res = await fetch(subtitleUrl.toString(), {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; Raspcast/1.0)" },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Subtitle download failed (${res.status})`);
+  }
+
+  const lengthHeader = Number(res.headers.get("content-length") || 0);
+  if (lengthHeader > MAX_SUBTITLE_SIZE_BYTES) {
+    throw new Error("Subtitle file is too large");
+  }
+
+  const data = new Uint8Array(await res.arrayBuffer());
+  if (data.byteLength === 0) {
+    throw new Error("Subtitle file is empty");
+  }
+  if (data.byteLength > MAX_SUBTITLE_SIZE_BYTES) {
+    throw new Error("Subtitle file is too large");
+  }
+
+  const ext = guessSubtitleExtension(subtitleUrl, res.headers.get("content-type"));
+  const filePath = `/tmp/raspcast-sub-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+  await writeFile(filePath, data);
+  subtitleTempFiles.add(filePath);
+  return filePath;
 }
 
 async function fetchTitle(url: string): Promise<string> {
@@ -131,8 +193,14 @@ app.delete("/api/history", requireAuth, async (c) => {
 app.post("/api/cmd", requireAuth, async (c) => {
   const body = await c.req.json();
   console.log("[cmd]", body.type, body.url ? body.url.slice(0, 80) + "..." : "");
-  await handleCommand(body);
-  return c.json({ ok: true });
+  try {
+    await handleCommand(body);
+    return c.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Command failed";
+    console.error("[cmd] Failed:", message);
+    return c.json({ error: message }, 400);
+  }
 });
 
 // Broadcast to all authenticated WS clients
@@ -301,6 +369,8 @@ function getPlaybackState() {
     position: playbackState.position,
     duration: playbackState.duration,
     volume: playbackState.volume,
+    subtitles: playbackState.subtitles,
+    subtitleEnabled: playbackState.subtitleEnabled,
   };
 }
 
@@ -332,11 +402,14 @@ async function handleCommand(msg: any) {
       }
 
       // Reset state
+      await cleanupSubtitleFiles();
       playbackState.playing = false;
       playbackState.paused = false;
       playbackState.position = 0;
       playbackState.duration = 0;
       playbackState.volume = 100;
+      playbackState.subtitles = [];
+      playbackState.subtitleEnabled = true;
 
       const titlePromise = fetchTitle(msg.url);
 
@@ -396,7 +469,7 @@ async function handleCommand(msg: any) {
       // Start connection attempts
       setTimeout(() => tryConnect(), 100);
 
-      mpvProcess.exited.then((code) => {
+      mpvProcess.exited.then(async (code) => {
         console.log("[mpv] Exited with code:", code);
         if (mpvSocket) {
           mpvSocket.end();
@@ -408,6 +481,9 @@ async function handleCommand(msg: any) {
         playbackState.paused = false;
         playbackState.position = 0;
         playbackState.duration = 0;
+        playbackState.subtitles = [];
+        playbackState.subtitleEnabled = true;
+        await cleanupSubtitleFiles();
         broadcast({ type: "status", data: { playing: false, current: null } });
       });
 
@@ -432,6 +508,9 @@ async function handleCommand(msg: any) {
       }
       currentMedia = null;
       playbackState.playing = false;
+      playbackState.subtitles = [];
+      playbackState.subtitleEnabled = true;
+      await cleanupSubtitleFiles();
       broadcast({ type: "status", data: { playing: false, current: null } });
       break;
 
@@ -447,6 +526,9 @@ async function handleCommand(msg: any) {
       }
       currentMedia = null;
       playbackState.playing = false;
+      playbackState.subtitles = [];
+      playbackState.subtitleEnabled = true;
+      await cleanupSubtitleFiles();
       broadcast({ type: "status", data: { playing: false, current: null } });
       break;
 
@@ -471,9 +553,22 @@ async function handleCommand(msg: any) {
 
     case "sub-add":
       // Add subtitle from URL
-      if (msg.url) {
-        console.log("[sub] Adding subtitle:", msg.url.slice(0, 80));
-        mpvCommand(["sub-add", msg.url]);
+      if (typeof msg.url === "string" && msg.url.trim()) {
+        if (!mpvSocket) {
+          throw new Error("Nothing is currently playing");
+        }
+
+        const subtitleUrl = msg.url.trim();
+        console.log("[sub] Adding subtitle:", subtitleUrl.slice(0, 80));
+
+        const filePath = await downloadSubtitle(subtitleUrl);
+        const added = mpvCommand(["sub-add", filePath, "select"]);
+        if (!added) {
+          subtitleTempFiles.delete(filePath);
+          await unlink(filePath).catch(() => {});
+          throw new Error("Failed to add subtitle track");
+        }
+        mpvCommand(["set_property", "sub-visibility", true]);
       }
       break;
 
@@ -515,7 +610,12 @@ async function handleWsMessage(ws: ServerWebSocket<{ authenticated: boolean }>, 
   }
 
   // All other commands
-  await handleCommand(msg);
+  try {
+    await handleCommand(msg);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Command failed";
+    ws.send(JSON.stringify({ type: "error", error: message }));
+  }
 }
 
 console.log(`Raspcast running on http://0.0.0.0:${PORT}`);

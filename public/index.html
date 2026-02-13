@@ -747,6 +747,11 @@
         case 'playing':
           nowPlayingTitle.textContent = msg.data.title;
           break;
+
+        case 'error':
+          playerStatus.textContent = msg.error || 'Command failed';
+          playerStatus.className = 'status error';
+          break;
       }
     }
 
@@ -972,11 +977,18 @@
       subTracks.innerHTML = html;
     }
 
-    function addSubtitle() {
+    async function addSubtitle() {
       const url = subUrlInput.value.trim();
       if (!url) return;
-      cmd('sub-add', { url });
-      subUrlInput.value = '';
+      const ok = await cmd('sub-add', { url });
+      if (ok) {
+        subUrlInput.value = '';
+        playerStatus.textContent = 'Subtitle added';
+        playerStatus.className = 'status';
+      } else {
+        playerStatus.textContent = 'Could not add subtitle URL';
+        playerStatus.className = 'status error';
+      }
     }
 
     function cmdSubSelect(id) { cmd('sub-select', { id }); }
