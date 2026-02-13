@@ -156,6 +156,7 @@
     /* Settings Menu */
     .settings-menu {
       position: relative;
+      z-index: 20;
     }
 
     .btn-menu {
@@ -179,7 +180,7 @@
       border: 1px solid #333;
       border-radius: 10px;
       padding: 6px;
-      min-width: 140px;
+      width: clamp(240px, calc(100vw - 32px), 320px);
       z-index: 100;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
@@ -215,7 +216,8 @@
 
     .sub-add-form {
       display: flex;
-      gap: 6px;
+      flex-direction: column;
+      gap: 8px;
       padding: 6px;
     }
     .sub-add-form input {
@@ -230,8 +232,10 @@
     }
     .sub-add-form input::placeholder { color: #555; }
     .sub-add-form .menu-item {
+      width: 100%;
       padding: 8px 10px;
       white-space: nowrap;
+      justify-content: center;
     }
 
     /* Seek Slider */
@@ -979,7 +983,12 @@
 
     async function addSubtitle() {
       const url = subUrlInput.value.trim();
-      if (!url) return;
+      if (!url) {
+        playerStatus.textContent = 'Paste subtitle URL first';
+        playerStatus.className = 'status error';
+        subUrlInput.focus();
+        return;
+      }
       const ok = await cmd('sub-add', { url });
       if (ok) {
         subUrlInput.value = '';
