@@ -6,8 +6,8 @@ import (
 
 type ExecLauncher struct{}
 
-func (el *ExecLauncher) Launch(url string) (Process, error) {
-	args := mpvArgs(url)
+func (el *ExecLauncher) Launch(url, socketPath string) (Process, error) {
+	args := mpvArgs(url, socketPath)
 	cmd := exec.Command("mpv", args...)
 
 	if err := cmd.Start(); err != nil {
@@ -17,10 +17,10 @@ func (el *ExecLauncher) Launch(url string) (Process, error) {
 	return cmd.Process, nil
 }
 
-func mpvArgs(url string) []string {
+func mpvArgs(url, socketPath string) []string {
 	return []string{
 		"--fullscreen",
-		"--input-ipc-server=" + SOCKET_PATH,
+		"--input-ipc-server=" + socketPath,
 		"--ytdl",
 		"--volume=80",
 

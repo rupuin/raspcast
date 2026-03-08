@@ -26,7 +26,7 @@ func main() {
 
 	http.HandleFunc("POST /auth", authHandler.Login)
 	http.HandleFunc("GET /auth", authHandler.Check)
-	http.HandleFunc("/ws", wsHub.ServeWS)
+	http.HandleFunc("/ws", authHandler.RequireAuth(wsHub.ServeWS))
 	http.Handle("/", http.FileServer(http.Dir("./public")))
 
 	go wsHub.Run()

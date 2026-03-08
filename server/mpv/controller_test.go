@@ -46,7 +46,7 @@ func newFakeLauncher(t *testing.T, socketPath string) *fakeLauncher {
 	return &fl
 }
 
-func (fl *fakeLauncher) Launch(url string) (Process, error) {
+func (fl *fakeLauncher) Launch(url, socketPath string) (Process, error) {
 	fl.launchCalls++
 	return &fakeProcess{}, nil
 }
@@ -64,7 +64,7 @@ func newTestController(t *testing.T) (*Controller, *fakeLauncher, net.Conn) {
 	return controller, launcher, conn
 }
 
-func startReadyController(t *testing.T) (*Controller, net.Conn) {
+func startRuntimeReadyController(t *testing.T) (*Controller, net.Conn) {
 	controller, _, conn := newTestController(t)
 
 	conn.Write([]byte(`{"event":"file-loaded"}` + "\n"))
@@ -175,7 +175,7 @@ func TestConsume_PropertyEvents(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			controller, conn := startReadyController(t)
+			controller, conn := startRuntimeReadyController(t)
 
 			for _, line := range tc.lines {
 				conn.Write([]byte(line))
@@ -198,7 +198,7 @@ func TestConsume_PropertyEvents(t *testing.T) {
 }
 
 func TestConsume_EmitsStopped_WhenSocketCloses(t *testing.T) {
-	controller, conn := startReadyController(t)
+	controller, conn := startRuntimeReadyController(t)
 
 	conn.Close()
 	select {
@@ -212,7 +212,7 @@ func TestConsume_EmitsStopped_WhenSocketCloses(t *testing.T) {
 }
 
 func TestConsume_EmitsStoppedOnlyOnce_WhenSocketCloses(t *testing.T) {
-	controller, conn := startReadyController(t)
+	controller, conn := startRuntimeReadyController(t)
 
 	conn.Close()
 
@@ -232,23 +232,8 @@ func TestConsume_EmitsStoppedOnlyOnce_WhenSocketCloses(t *testing.T) {
 	}
 }
 
-func TestStop_EmitsStopped(t *testing.T) {
-	controller, _ := startReadyController(t)
-
-	controller.Stop()
-
-	select {
-	case msg := <-controller.Events:
-		if msg.Kind != Stopped {
-			t.Errorf("expected Stopped, got: %v", msg)
-		}
-	case <-time.After(time.Second):
-		t.Fatalf("timed out waiting for message")
-	}
-}
-
 func TestStop_EmitsStoppedOnlyOnce(t *testing.T) {
-	controller, _ := startReadyController(t)
+	controller, _ := startRuntimeReadyController(t)
 
 	controller.Stop()
 

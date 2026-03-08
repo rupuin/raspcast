@@ -51,3 +51,13 @@ func (h *Handler) Check(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"authenticated": authenticated})
 }
+
+func (h *Handler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("session")
+		if err != nil || !h.store.valid(cookie.Value) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+		}
+		next(w, r)
+	}
+}

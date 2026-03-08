@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"time"
-
-	"github.com/rupuin/raspcast/server/ipc"
 )
 
 const (
@@ -23,7 +21,7 @@ type Process interface {
 }
 
 type Launcher interface {
-	Launch(url string) (Process, error)
+	Launch(url, socketPath string) (Process, error)
 }
 
 type Kind string
@@ -50,23 +48,31 @@ type action struct {
 }
 
 type Controller struct {
-	Events       <-chan Event
-	events       chan Event
-	actions      chan action
-	process      Process
-	launcher     Launcher
-	socket       *ipc.Socket
-	socketPath   string
-	cancelWorker context.CancelFunc
+	Events             <-chan Event
+	events             chan Event
+	actions            chan action
+	launcher           Launcher
+	runtime            *runtime
+	observedProperties []string
+	socketPath         string
+	cancelWorker       context.CancelFunc
 }
 
 func NewController(launcher Launcher, socketPath string) *Controller {
 	events := make(chan Event, 16)
 	c := &Controller{
-		Events:     events,
-		events:     events,
-		actions:    make(chan action, 16),
-		launcher:   launcher,
+		Events:   events,
+		events:   events,
+		actions:  make(chan action, 16),
+		launcher: launcher,
+		observedProperties: []string{
+			"media-title",
+			"time-pos",
+			"duration",
+			"pause",
+			"volume",
+			"track-list",
+			"sub-visibility"},
 		socketPath: socketPath,
 	}
 	go c.run()
@@ -74,9 +80,8 @@ func NewController(launcher Launcher, socketPath string) *Controller {
 }
 
 type workerState struct {
-	out   <-chan Event
-	ready <-chan *ipc.Socket
-	done  <-chan struct{}
+	out  <-chan Event
+	done <-chan struct{}
 }
 
 func (c *Controller) run() {
@@ -86,8 +91,6 @@ func (c *Controller) run() {
 		select {
 		case action := <-c.actions:
 			c.handleAction(action, &worker)
-		case socket := <-worker.ready:
-			c.handleSocketReady(socket)
 		case event := <-worker.out:
 			c.handleWorkerEvent(event)
 		case <-worker.done:
@@ -117,18 +120,18 @@ func (c *Controller) handleStart(a action, w *workerState) {
 		return
 	}
 
-	if c.socket != nil {
-		a.reply <- c.socket.Send(map[string]any{"command": []any{"loadfile", a.url, "replace"}})
+	if c.runtime != nil && c.runtime.hasSocket() {
+		a.reply <- c.runtime.command([]any{"loadfile", a.url, "replace"})
 		return
 	}
 
-	if c.process == nil {
-		process, err := c.launcher.Launch(a.url)
+	if c.runtime == nil {
+		process, err := c.launcher.Launch(a.url, c.socketPath)
 		if err != nil {
 			a.reply <- err
 			return
 		}
-		c.process = process
+		c.runtime = newRuntime(process)
 	}
 
 	if w.done == nil {
@@ -138,29 +141,23 @@ func (c *Controller) handleStart(a action, w *workerState) {
 	a.reply <- nil
 }
 
-func (c *Controller) handleSocketReady(socket *ipc.Socket) {
-	c.socket = socket
-	subscribeToSocket(c.socket)
-}
-
 func (c *Controller) startWorker(w *workerState) {
 	out := make(chan Event, 16)
-	ready := make(chan *ipc.Socket, 1)
 	done := make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancelWorker = cancel
 
 	w.out = out
-	w.ready = ready
 	w.done = done
 
-	go c.runWorker(ctx, ready, out, done)
+	rt := c.runtime
+	go c.runWorker(ctx, rt, out, done)
 }
 
 func (c *Controller) runWorker(
 	ctx context.Context,
-	ready chan<- *ipc.Socket,
+	rt *runtime,
 	out chan<- Event,
 	done chan<- struct{},
 ) {
@@ -168,37 +165,35 @@ func (c *Controller) runWorker(
 	sockCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	socket, err := waitForSocket(sockCtx, c.socketPath)
-	if err != nil {
+	if err := rt.connect(sockCtx, c.socketPath); err != nil {
 		slog.Error("error waiting for socket open", "err", err)
 		return
 	}
-	select {
-	case ready <- socket:
-	case <-ctx.Done():
-		socket.Disconnect()
+
+	if err := rt.observeProperties(c.observedProperties); err != nil {
+		slog.Error("error subscribing to properties", "err", err)
 		return
 	}
 
-		for {
-			select {
-			case msg := <-socket.Messages:
+	for {
+		select {
+		case msg := <-rt.messages():
 			event, ok := parseEvent(msg)
 			if !ok {
 				continue
 			}
 			select {
 			case out <- event:
-				case <-ctx.Done():
-					return
-				}
-			case <-socket.Done:
-				return
 			case <-ctx.Done():
 				return
 			}
+		case <-rt.done():
+			return
+		case <-ctx.Done():
+			return
 		}
 	}
+}
 
 func (c *Controller) handleWorkerEvent(e Event) {
 	c.events <- e
@@ -208,7 +203,6 @@ func (c *Controller) handleWorkerDone(worker *workerState) {
 	unexpected := c.cancelWorker != nil
 
 	worker.out = nil
-	worker.ready = nil
 	worker.done = nil
 	c.cancelWorker = nil
 
@@ -216,8 +210,9 @@ func (c *Controller) handleWorkerDone(worker *workerState) {
 		return
 	}
 
-	c.socket = nil
-	c.process = nil
+	if c.runtime != nil {
+		c.runtime = nil
+	}
 	c.events <- Event{Kind: Stopped}
 }
 
@@ -233,13 +228,19 @@ func (c *Controller) handleAction(action action, worker *workerState) {
 }
 
 func (c *Controller) handleSend(command []any) {
-	if c.socket == nil {
+	if c.runtime == nil {
+		slog.Warn("runtime not found; nothing to send")
 		return
 	}
-	c.socket.Send(map[string]any{"command": command})
+	if err := c.runtime.command(command); err != nil {
+		slog.Warn("runtime command failed", "err", err)
+	}
 }
 
 func (c *Controller) handleStop(worker *workerState) {
+	stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
 	if c.cancelWorker != nil {
 		c.cancelWorker()
 	}
@@ -249,45 +250,18 @@ func (c *Controller) handleStop(worker *workerState) {
 	}
 
 	worker.out = nil
-	worker.ready = nil
 	worker.done = nil
 	c.cancelWorker = nil
 
-	if c.socket != nil {
-		if err := c.socket.Send(map[string]any{"command": []any{"quit"}}); err != nil {
-			slog.Error("error closing socket", "err", err)
+	if c.runtime != nil {
+		state, err := c.runtime.stop(stopCtx)
+		if err != nil {
+			slog.Error("error stopping runtime", "state", state, "err", err)
 		}
-		c.socket.Disconnect()
-		c.socket = nil
+		c.runtime = nil
 	}
-
-	c.killProcess()
 
 	c.events <- Event{Kind: Stopped}
-}
-
-func (c *Controller) killProcess() {
-	if c.process == nil {
-		return
-	}
-	err := c.process.Kill()
-	if err != nil {
-		slog.Error("error killing process", "err", err)
-	}
-	c.waitProcessExit()
-}
-
-func (c *Controller) waitProcessExit() {
-	if c.process == nil {
-		return
-	}
-	state, err := c.process.Wait()
-	if err != nil {
-		slog.Error("error waiting for process exit", "state", state, "err", err)
-	}
-	c.process = nil
-	slog.Info("mpv exited", "state", state)
-
 }
 
 func parseEvent(msg map[string]any) (Event, bool) {
@@ -307,27 +281,4 @@ func parseEvent(msg map[string]any) (Event, bool) {
 	}
 
 	return Event{Kind: Property, Name: name, Value: msg["data"]}, true
-}
-
-func subscribeToSocket(s *ipc.Socket) {
-	props := []string{"media-title", "time-pos", "duration", "pause", "volume", "track-list", "sub-visibility"}
-	for i, prop := range props {
-		mpvCommand := []any{"observe_property", i + 1, prop}
-		s.Send(map[string]any{"command": mpvCommand})
-	}
-}
-
-func waitForSocket(ctx context.Context, path string) (*ipc.Socket, error) {
-	for {
-		socket, err := ipc.NewSocket(path)
-		if err == nil {
-			return socket, nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, fmt.Errorf("timed out waiting for socket")
-		case <-time.After(100 * time.Millisecond):
-		}
-	}
 }
