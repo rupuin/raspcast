@@ -387,10 +387,9 @@ export function PlayerView() {
               type="button"
               onClick={handleStop}
               disabled={!state.connected || !canControl}
-              className="flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs text-slate-500 transition hover:text-red-300 hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
+              className="rounded-xl p-2.5 text-slate-500 transition hover:text-red-300 hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
             >
-              <Square className="h-4 w-4" strokeWidth={1.5} />
-              Stop
+              <Square className="h-5 w-5" strokeWidth={1.5} />
             </button>
           </div>
         </section>

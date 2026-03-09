@@ -43,13 +43,13 @@ export function AuthView({ onSuccess }: AuthViewProps) {
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
       <section className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/55 p-8 shadow-2xl shadow-black/40 backdrop-blur-2xl">
-        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
-        <div className="flex items-center gap-3 text-amber-100">
-          <div className="rounded-2xl bg-amber-300/15 p-3 ring-1 ring-amber-200/20">
+        <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-rose-400/60 to-transparent" />
+        <div className="flex items-center gap-3 text-rose-100">
+          <div className="rounded-2xl bg-rose-500/15 p-3 ring-1 ring-rose-400/20">
             <ShieldCheck className="h-6 w-6" strokeWidth={1.8} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-200/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-300/70">
               Raspcast
             </p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
@@ -83,7 +83,7 @@ export function AuthView({ onSuccess }: AuthViewProps) {
           </label>
 
           <button
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-amber-300 px-4 py-3 text-sm font-semibold text-slate-950 transition duration-200 hover:bg-amber-200 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
+            className="inline-flex w-full items-center justify-center rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white transition duration-200 hover:bg-rose-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-300"
             type="submit"
             disabled={submitting}
           >

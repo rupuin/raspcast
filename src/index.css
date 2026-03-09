@@ -29,10 +29,16 @@ body,
   min-height: 100%;
 }
 
+html {
+  background-color: #0b1016;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   color: #f4efe7;
+  /* extend bg behind iOS status bar / notch */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 button,
