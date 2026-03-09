@@ -308,89 +308,88 @@ export function PlayerView() {
             </div>
           </div>
 
-          {/* Volume row */}
-          <div className="mt-3 flex items-center gap-2.5">
-            <VolumeIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" strokeWidth={1.5} />
-            <input
-              className="seek-range flex-1"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={state.volume}
-              onChange={handleVolume}
-              disabled={!state.connected}
-              style={{
-                background: `linear-gradient(to right, rgba(244,63,94,0.55) ${state.volume}%, rgba(255,255,255,0.08) ${state.volume}%)`,
-              }}
-            />
-            <span className="w-6 text-right text-[10px] font-medium tabular-nums text-slate-600">
-              {Math.round(state.volume)}
-            </span>
-          </div>
+          {/* Transport + Volume */}
+          <div className="mt-4 flex items-center">
+            {/* Transport */}
+            <div className="flex flex-1 flex-col items-center gap-1">
+              <div className="flex items-center justify-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowSubPanel((v) => !v)}
+                  disabled={!state.connected || !canControl}
+                  className={`rounded-xl p-2.5 transition disabled:opacity-20 disabled:cursor-not-allowed ${
+                    subtitlesLoaded
+                      ? 'text-rose-400 hover:bg-rose-500/10'
+                      : showSubPanel
+                        ? 'text-slate-300 bg-white/8'
+                        : 'text-slate-400 hover:text-white hover:bg-white/8'
+                  }`}
+                >
+                  <Captions className="h-5 w-5" strokeWidth={1.5} />
+                </button>
 
-          {/* Transport controls */}
-          <div className="mt-4 flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => setShowSubPanel((v) => !v)}
-              disabled={!state.connected || !canControl}
-              className={`rounded-xl p-3 transition disabled:opacity-20 disabled:cursor-not-allowed ${
-                subtitlesLoaded
-                  ? 'text-rose-400 hover:bg-rose-500/10'
-                  : showSubPanel
-                    ? 'text-slate-300 bg-white/8'
-                    : 'text-slate-400 hover:text-white hover:bg-white/8'
-              }`}
-            >
-              <Captions className="h-6 w-6" strokeWidth={1.5} />
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleSkip(-5)}
+                  disabled={!state.connected || !canControl}
+                  className="rounded-xl p-2.5 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  <Rewind className="h-5 w-5" strokeWidth={1.5} />
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleSkip(-5)}
-              disabled={!state.connected || !canControl}
-              className="rounded-xl p-3 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <Rewind className="h-6 w-6" strokeWidth={1.5} />
-            </button>
+                <button
+                  type="button"
+                  onClick={handlePlayPause}
+                  disabled={!state.connected || (!canPlay && !canControl)}
+                  className="mx-1 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-400 hover:shadow-rose-600/35 active:scale-95 disabled:opacity-25 disabled:shadow-none disabled:cursor-not-allowed"
+                >
+                  {state.streaming && !state.paused ? (
+                    <Pause className="h-6 w-6" strokeWidth={2.5} fill="currentColor" />
+                  ) : (
+                    <Play className="h-6 w-6 translate-x-0.5" strokeWidth={2.5} fill="currentColor" />
+                  )}
+                </button>
 
-            <button
-              type="button"
-              onClick={handlePlayPause}
-              disabled={!state.connected || (!canPlay && !canControl)}
-              className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-400 hover:shadow-rose-600/35 active:scale-95 disabled:opacity-25 disabled:shadow-none disabled:cursor-not-allowed"
-            >
-              {state.streaming && !state.paused ? (
-                <Pause className="h-7 w-7" strokeWidth={2.5} fill="currentColor" />
-              ) : (
-                <Play className="h-7 w-7 translate-x-0.5" strokeWidth={2.5} fill="currentColor" />
-              )}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleSkip(5)}
+                  disabled={!state.connected || !canControl}
+                  className="rounded-xl p-2.5 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  <FastForward className="h-5 w-5" strokeWidth={1.5} />
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleSkip(5)}
-              disabled={!state.connected || !canControl}
-              className="rounded-xl p-3 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <FastForward className="h-6 w-6" strokeWidth={1.5} />
-            </button>
+                <button
+                  type="button"
+                  onClick={handleStop}
+                  disabled={!state.connected || !canControl}
+                  className="rounded-xl p-2.5 text-slate-500 transition hover:text-red-300 hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
+                >
+                  <Square className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              </div>
+            </div>
 
-            {/* Spacer to keep play centered against captions */}
-            <div className="w-12" />
-          </div>
-
-          {/* Stop below play */}
-          <div className="mt-2 flex justify-center">
-            <button
-              type="button"
-              onClick={handleStop}
-              disabled={!state.connected || !canControl}
-              className="rounded-xl p-2.5 text-slate-500 transition hover:text-red-300 hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <Square className="h-5 w-5" strokeWidth={1.5} />
-            </button>
+            {/* Vertical Volume */}
+            <div className="flex flex-col items-center gap-1.5 border-l border-white/8 pl-3 ml-1">
+              <VolumeIcon className="h-3.5 w-3.5 text-slate-500" strokeWidth={1.5} />
+              <input
+                className="volume-range"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={state.volume}
+                onChange={handleVolume}
+                disabled={!state.connected}
+                style={{
+                  background: `linear-gradient(to top, rgba(148,163,184,0.5) 0%, rgba(244,63,94,0.6) ${state.volume}%, rgba(255,255,255,0.06) ${state.volume}%)`,
+                }}
+              />
+              <span className="w-6 text-center text-[10px] font-medium tabular-nums text-slate-600">
+                {Math.round(state.volume)}
+              </span>
+            </div>
           </div>
         </section>
 

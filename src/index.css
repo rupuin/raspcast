@@ -105,6 +105,66 @@ input {
   cursor: not-allowed;
 }
 
+/* ─── Volume range (vertical) ─── */
+
+.volume-range {
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 6px;
+  height: 6rem;
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s;
+}
+
+.volume-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #fecdd3;
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.volume-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.45);
+}
+
+.volume-range::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  background: #fecdd3;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+  cursor: pointer;
+}
+
+.volume-range::-moz-range-track {
+  width: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.volume-range::-moz-range-progress {
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgba(148, 163, 184, 0.5),
+    rgba(244, 63, 94, 0.6)
+  );
+}
+
+.volume-range:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
 
 /* ─── Animations ─── */
 
