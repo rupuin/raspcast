@@ -49,6 +49,9 @@ export function PlayerView() {
 
     client.onMessage = (message) => {
       dispatch({ type: 'server_message', message })
+      if (message.type === 'active' || message.type === 'stopped' || message.type === 'error') {
+        setLoading(false)
+      }
     }
 
     client.onClose = () => {
@@ -105,6 +108,7 @@ export function PlayerView() {
   }
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
     const pasted = e.clipboardData.getData('text').trim()
     if (pasted) {
       setUrlInput(pasted)
@@ -194,7 +198,10 @@ export function PlayerView() {
             !urlExpanded
               ? () => {
                   setUrlExpanded(true)
-                  requestAnimationFrame(() => urlInputRef.current?.focus())
+                  requestAnimationFrame(() => {
+                    urlInputRef.current?.focus()
+                    urlInputRef.current?.select()
+                  })
                 }
               : undefined
           }
