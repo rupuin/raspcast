@@ -8,7 +8,6 @@ User=rupuin
 WorkingDirectory=/home/rupuin/raspcast
 EnvironmentFile=/etc/raspcast/env
 Environment=HISTORY_STORE_PATH=/var/lib/raspcast/history.json
-ExecStartPre=/bin/mkdir -p /var/lib/raspcast
 ExecStart=/home/rupuin/raspcast/raspcast
 Restart=on-failure
 RestartSec=5
