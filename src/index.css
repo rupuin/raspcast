@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+:root {
+  color: #f4efe7;
+  background:
+    radial-gradient(circle at top, rgba(244, 63, 94, 0.08), transparent 30%),
+    radial-gradient(
+      circle at bottom left,
+      rgba(14, 165, 233, 0.1),
+      transparent 28%
+    ),
+    linear-gradient(180deg, #0b1016 0%, #111827 44%, #0a0f14 100%);
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-synthesis: none;
+  font-weight: 400;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: #f4efe7;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(244, 63, 94, 0.3);
+}
+
+/* ─── Seek range (horizontal) ─── */
+
+.seek-range {
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s;
+}
+
+.seek-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #e11d48;
+  border: none;
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.seek-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.seek-range::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  border: none;
+  background: #e11d48;
+  box-shadow: 0 0 10px rgba(225, 29, 72, 0.35);
+  cursor: pointer;
+}
+
+.seek-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.seek-range::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(244, 63, 94, 0.7);
+}
+
+.seek-range:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+/* ─── Volume range (vertical) ─── */
+
+.volume-range {
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 6px;
+  height: 7.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s;
+}
+
+.volume-range::-webkit-slider-thumb {
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #fecdd3;
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.volume-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.45);
+}
+
+.volume-range::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  background: #fecdd3;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.3);
+  cursor: pointer;
+}
+
+.volume-range::-moz-range-track {
+  width: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.volume-range::-moz-range-progress {
+  border-radius: 999px;
+  background: linear-gradient(
+    to top,
+    rgba(148, 163, 184, 0.5),
+    rgba(244, 63, 94, 0.6)
+  );
+}
+
+.volume-range:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+/* ─── Animations ─── */
+
+.slide-in {
+  animation: slideIn 200ms ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.glow-loading {
+  animation: glowPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 4px rgba(244, 63, 94, 0.15);
+    border-color: rgba(244, 63, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
+    border-color: rgba(244, 63, 94, 0.45);
+  }
+}
