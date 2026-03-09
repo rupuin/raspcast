@@ -6,11 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    port: 3141,
     proxy: {
-      '/auth': 'http://localhost:3141',
-      '/history': 'http://localhost:3141',
+      '/auth': 'http://localhost:5173',
+      '/history': 'http://localhost:5173',
       '/ws': {
-        target: 'ws://localhost:3141',
+        target: 'ws://localhost:5173',
         ws: true,
       },
     },
