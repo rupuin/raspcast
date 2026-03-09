@@ -34,17 +34,17 @@ func newTestClient(p Player) *Client {
 
 func TestDispatch(t *testing.T) {
 	cases := []struct {
-		msg        wsMsg
+		msg        ClientMessage
 		wantAction string
 		wantURL    string
 		wantValue  float64
 	}{
-		{wsMsg{Kind: "play", URL: "https://example.com"}, "play", "https://example.com", 0},
-		{wsMsg{Kind: "pause"}, "pause", "", 0},
-		{wsMsg{Kind: "stop"}, "stop", "", 0},
-		{wsMsg{Kind: "seek", Percent: 42.5}, "seek", "", 42.5},
-		{wsMsg{Kind: "skip", Seconds: -10}, "skip", "", -10},
-		{wsMsg{Kind: "volume", Value: 80}, "volume", "", 80},
+		{ClientMessage{Type: "play", URL: "https://example.com"}, "play", "https://example.com", 0},
+		{ClientMessage{Type: "pause"}, "pause", "", 0},
+		{ClientMessage{Type: "stop"}, "stop", "", 0},
+		{ClientMessage{Type: "seek", Percent: 42.5}, "seek", "", 42.5},
+		{ClientMessage{Type: "skip", Seconds: -10}, "skip", "", -10},
+		{ClientMessage{Type: "volume", Value: 80}, "volume", "", 80},
 	}
 
 	for _, tc := range cases {
@@ -52,17 +52,17 @@ func TestDispatch(t *testing.T) {
 		c := newTestClient(m)
 
 		if err := c.dispatch(tc.msg); err != nil {
-			t.Errorf("dispatch(%q) unexpected error: %v", tc.msg.Kind, err)
+			t.Errorf("dispatch(%q) unexpected error: %v", tc.msg.Type, err)
 		}
 		if m.action != tc.wantAction {
-			t.Errorf("dispatch(%q): got action %q, want %q", tc.msg.Kind, m.action, tc.wantAction)
+			t.Errorf("dispatch(%q): got action %q, want %q", tc.msg.Type, m.action, tc.wantAction)
 		}
 		if tc.wantURL != "" && m.url != tc.wantURL {
-			t.Errorf("dispatch(%q): got url %q, want %q", tc.msg.Kind, m.url, tc.wantURL)
+			t.Errorf("dispatch(%q): got url %q, want %q", tc.msg.Type, m.url, tc.wantURL)
 		}
 		if tc.wantValue != 0 {
 			var got float64
-			switch tc.msg.Kind {
+			switch tc.msg.Type {
 			case "seek":
 				got = m.percent
 			case "skip":
@@ -71,7 +71,7 @@ func TestDispatch(t *testing.T) {
 				got = m.value
 			}
 			if got != tc.wantValue {
-				t.Errorf("dispatch(%q): got value %v, want %v", tc.msg.Kind, got, tc.wantValue)
+				t.Errorf("dispatch(%q): got value %v, want %v", tc.msg.Type, got, tc.wantValue)
 			}
 		}
 	}
@@ -89,12 +89,18 @@ func TestHandleSnapshot_QueuesOutboundReply(t *testing.T) {
 			t.Fatalf("expected outbound reply for current client")
 		}
 
-		var got player.State
+		var got struct {
+			Type  string       `json:"type"`
+			Value player.State `json:"value"`
+		}
 		if err := json.Unmarshal(out.msg, &got); err != nil {
 			t.Fatalf("failed to decode snapshot reply: %v", err)
 		}
-		if got != m.snapshot {
-			t.Fatalf("expected snapshot %+v, got %+v", m.snapshot, got)
+		if got.Type != "snapshot" {
+			t.Fatalf("expected snapshot reply, got %+v", got)
+		}
+		if got.Value != m.snapshot {
+			t.Fatalf("expected snapshot %+v, got %+v", m.snapshot, got.Value)
 		}
 	default:
 		t.Fatal("expected snapshot reply to be queued")

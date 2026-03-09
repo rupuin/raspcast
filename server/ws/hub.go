@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -78,7 +77,7 @@ func (h *Hub) Run() {
 				h.removeClient(outbound.client)
 			}
 		case event := <-h.events:
-			serialized, err := json.Marshal(event)
+			serialized, err := EncodeEvent(event)
 			if err != nil {
 				slog.Error("failed to marshal event", "err", err)
 				continue

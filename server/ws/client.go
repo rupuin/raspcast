@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"encoding/json"
 	"log/slog"
 
 	"github.com/gorilla/websocket"
@@ -11,14 +10,6 @@ type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
 	send chan []byte
-}
-
-type wsMsg struct {
-	Kind    string  `json:"type"`
-	URL     string  `json:"url,omitempty"`
-	Percent float64 `json:"percent,omitempty"`
-	Seconds float64 `json:"seconds,omitempty"`
-	Value   float64 `json:"value,omitempty"`
 }
 
 func (c *Client) writePump() {
@@ -53,17 +44,17 @@ func (c *Client) readPump() {
 }
 
 func (c *Client) handle(rawMsg []byte) {
-	var msg wsMsg
-	if err := json.Unmarshal(rawMsg, &msg); err != nil {
+	msg, err := DecodeClientMessage(rawMsg)
+	if err != nil {
 		slog.Error("error deserializing websocket message", "err", err)
-		c.reply(errMsg(err))
+		c.reply(EncodeError(err))
 		return
 	}
 
-	if msg.Kind == "snapshot" {
-		snap, err := json.Marshal(c.hub.player.Snapshot())
+	if msg.Type == "snapshot" {
+		snap, err := EncodeSnapshot(c.hub.player.Snapshot())
 		if err != nil {
-			c.reply(errMsg(err))
+			c.reply(EncodeError(err))
 			return
 		}
 		c.reply(snap)
@@ -72,7 +63,7 @@ func (c *Client) handle(rawMsg []byte) {
 
 	if err := c.dispatch(msg); err != nil {
 		slog.Error("error calling Player action", "err", err)
-		c.reply(errMsg(err))
+		c.reply(EncodeError(err))
 		return
 	}
 }
@@ -81,8 +72,8 @@ func (c *Client) reply(msg []byte) {
 	c.hub.outbound <- outbound{client: c, msg: msg}
 }
 
-func (c *Client) dispatch(msg wsMsg) error {
-	switch msg.Kind {
+func (c *Client) dispatch(msg ClientMessage) error {
+	switch msg.Type {
 	case "play":
 		return c.hub.player.Play(msg.URL)
 	case "pause":
@@ -96,12 +87,7 @@ func (c *Client) dispatch(msg wsMsg) error {
 	case "stop":
 		c.hub.player.Stop()
 	default:
-		slog.Warn("unknown message type", "type", msg.Kind)
+		slog.Warn("unknown message type", "type", msg.Type)
 	}
 	return nil
-}
-
-func errMsg(e error) []byte {
-	b, _ := json.Marshal(map[string]string{"type": "error", "error": e.Error()})
-	return b
 }

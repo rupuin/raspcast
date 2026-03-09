@@ -45,13 +45,13 @@ type Event struct {
 }
 
 type State struct {
-	Streaming bool
-	URL       string
-	Position  float64
-	Duration  float64
-	Paused    bool
-	Volume    float64
-	Title     string
+	Streaming bool    `json:"streaming"`
+	URL       string  `json:"url"`
+	Position  float64 `json:"position"`
+	Duration  float64 `json:"duration"`
+	Paused    bool    `json:"paused"`
+	Volume    float64 `json:"volume"`
+	Title     string  `json:"title"`
 }
 
 type action struct {
@@ -224,25 +224,40 @@ func (p *Player) handleProperty(name string, val any) {
 	switch name {
 	case "media-title":
 		if v, ok := cast[string](val, name); ok {
+			if val == nil {
+				return
+			}
 			p.state.Title = v
 			p.Events <- Event{Kind: Title, Value: v}
 		}
 	case "time-pos":
+		if val == nil {
+			return
+		}
 		if v, ok := cast[float64](val, name); ok {
 			p.state.Position = v
 			p.Events <- Event{Kind: Position, Value: v}
 		}
 	case "duration":
+		if val == nil {
+			return
+		}
 		if v, ok := cast[float64](val, name); ok {
 			p.state.Duration = v
 			p.Events <- Event{Kind: Duration, Value: v}
 		}
 	case "volume":
+		if val == nil {
+			return
+		}
 		if v, ok := cast[float64](val, name); ok {
 			p.state.Volume = v
 			p.Events <- Event{Kind: Volume, Value: v}
 		}
 	case "pause":
+		if val == nil {
+			return
+		}
 		if v, ok := cast[bool](val, name); ok {
 			p.state.Paused = v
 			p.Events <- Event{Kind: Paused, Value: v}
