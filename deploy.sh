@@ -6,6 +6,9 @@ cd ~/raspcast
 echo "🔄 Pulling latest changes..."
 git pull
 
+echo "📦 Installing dependencies..."
+bun install
+
 echo "🏗️  Building frontend..."
 bun run build
 
