@@ -112,10 +112,12 @@ input {
   writing-mode: vertical-lr;
   direction: rtl;
   width: 6px;
-  height: 6rem;
+  height: 8rem;
   border-radius: 999px;
   cursor: pointer;
   outline: none;
+  touch-action: none;
+  padding: 0 10px;
   transition: opacity 0.2s;
 }
 
