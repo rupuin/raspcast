@@ -1,4 +1,5 @@
 node_modules/
+.gocache
 .env
 history.json
 *.log

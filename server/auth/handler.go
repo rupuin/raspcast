@@ -57,6 +57,7 @@ func (h *Handler) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		cookie, err := r.Cookie("session")
 		if err != nil || !h.store.valid(cookie.Value) {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
 		}
 		next(w, r)
 	}
