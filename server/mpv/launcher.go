@@ -30,8 +30,8 @@ func mpvArgs(url, socketPath string) []string {
 		// CACHING - pause if buffer runs low instead of slow-mo
 		"--cache=yes",
 		"--cache-secs=60",
-		"--cache-pause=yes",
-		"--cache-pause-wait=5",
+		"--cache-pause-initial=yes",
+		"--cache-pause-wait=3",
 		"--demuxer-max-bytes=300MiB",
 		"--demuxer-max-back-bytes=150MiB",
 		"--demuxer-readahead-secs=60",
@@ -40,7 +40,7 @@ func mpvArgs(url, socketPath string) []string {
 		"--framedrop=vo",
 
 		// AUDIO
-		"--audio-buffer=1",
+		// "--audio-buffer=1",
 
 		// NETWORK
 		"--network-timeout=30",
