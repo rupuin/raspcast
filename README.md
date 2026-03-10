@@ -19,7 +19,7 @@ Subtitle control and play history are partially built but not yet functional.
 ### 1. Clone and configure
 
 ```sh
-git clone https://github.com/rupuin/raspcast ~/raspcast
+git clone https://github.com/rupuin/raspcast 
 ```
 
 Create `/etc/raspcast/env`:
@@ -43,18 +43,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now raspcast
 ```
 
-The service file assumes user `rupuin` and path `/home/rupuin/raspcast`. Edit `raspcast.service` to match your username before copying.
+The service file assumes user `rupuin` and path `/home/rupuin/raspcast`. Edit `raspcast.service` to match your username and source code dir before copying.
 
 ## Deploying updates
 
-From the Pi, run:
+Make the `deploy.sh` script executable. Then from the Pi run:
 
 ```sh
-~/raspcast/deploy.sh
+./deploy.sh
 ```
 
-This pulls latest changes, rebuilds frontend and server, and restarts the service.
+This pulls latest changes, rebuilds frontend and server, and restarts the systemd service.
 
 ## Usage
 
-Open `http://<host>:3141` in a browser. Enter the PIN, paste any mpv-compatible URL (YouTube, direct video, streams), and hit play.
+Open `http://<host>:3141` in a browser. Enter the PIN, paste any mpv-compatible URL (YouTube, direct video, streams).
