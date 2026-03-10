@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
+# Raspcast
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Web-based remote control for [mpv](https://mpv.io/). Point it at a URL, control playback from any browser on the network. Built for Raspberry Pi 5 but works anywhere mpv runs.
 
-Currently, two official plugins are available:
+## What it is
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+A Go server that manages an mpv process via its IPC socket. The frontend connects over WebSocket and gets real-time playback state — position, duration, title, volume, pause. Controls (play, pause, seek, skip ±5s, volume, stop) are dispatched back to mpv. Authentication is PIN-based with a session cookie. Multiple clients can connect simultaneously and stay in sync.
 
-## React Compiler
+Subtitle control and play history are partially built but not yet functional.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Requirements
 
-## Expanding the ESLint configuration
+- mpv
+- Go 1.22+
+- Bun (frontend build)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Setup
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 1. Clone and configure
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+git clone https://github.com/rupuin/raspcast ~/raspcast
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create `/etc/raspcast/env`:
+```sh
+PIN=1234
 ```
+
+### 2. Build
+
+```sh
+cd ~/raspcast
+bun install && bun run build
+cd server && go build -o ../raspcast . && cd ..
+```
+
+### 3. Install as a systemd service
+
+```sh
+sudo cp raspcast.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now raspcast
+```
+
+The service file assumes user `rupuin` and path `/home/rupuin/raspcast`. Edit `raspcast.service` to match your username before copying.
+
+## Deploying updates
+
+From the Pi, run:
+
+```sh
+~/raspcast/deploy.sh
+```
+
+This pulls latest changes, rebuilds frontend and server, and restarts the service.
+
+## Usage
+
+Open `http://<host>:3141` in a browser. Enter the PIN, paste any mpv-compatible URL (YouTube, direct video, streams), and hit play.
