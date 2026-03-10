@@ -10,6 +10,8 @@ EnvironmentFile=/etc/raspcast/env
 Environment=HISTORY_STORE_PATH=/var/lib/raspcast/history.json
 ExecStart=/home/rupuin/raspcast/raspcast
 Restart=on-failure
+KillMode=control-group
+TimeoutStopSec=5
 RestartSec=5
 
 [Install]

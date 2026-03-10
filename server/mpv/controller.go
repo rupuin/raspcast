@@ -111,7 +111,9 @@ func (c *Controller) Send(cmd []any) {
 }
 
 func (c *Controller) Stop() {
-	c.actions <- action{kind: actionStop}
+	reply := make(chan error, 1)
+	c.actions <- action{kind: actionStop, reply: reply}
+	<-reply
 }
 
 func (c *Controller) handleStart(a action, w *workerState) {
@@ -223,7 +225,10 @@ func (c *Controller) handleAction(action action, worker *workerState) {
 	case actionSend:
 		c.handleSend(action.command)
 	case actionStop:
-		c.handleStop(worker)
+		err := c.handleStop(worker)
+		if action.reply != nil {
+			action.reply <- err
+		}
 	}
 }
 
@@ -237,7 +242,7 @@ func (c *Controller) handleSend(command []any) {
 	}
 }
 
-func (c *Controller) handleStop(worker *workerState) {
+func (c *Controller) handleStop(worker *workerState) error {
 	stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -253,15 +258,14 @@ func (c *Controller) handleStop(worker *workerState) {
 	worker.done = nil
 	c.cancelWorker = nil
 
+	var stopErr error
 	if c.runtime != nil {
-		state, err := c.runtime.stop(stopCtx)
-		if err != nil {
-			slog.Error("error stopping runtime", "state", state, "err", err)
-		}
+		_, stopErr = c.runtime.stop(stopCtx)
 		c.runtime = nil
 	}
 
 	c.events <- Event{Kind: Stopped}
+	return stopErr
 }
 
 func parseEvent(msg map[string]any) (Event, bool) {
