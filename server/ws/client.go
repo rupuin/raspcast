@@ -34,7 +34,12 @@ func (c *Client) readPump() {
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			if websocket.IsUnexpectedCloseError(
+				err,
+				websocket.CloseNormalClosure,
+				websocket.CloseGoingAway,
+				websocket.CloseNoStatusReceived,
+			) {
 				slog.Error("error reading websocket message", "err", err)
 			}
 			break
@@ -51,7 +56,12 @@ func (c *Client) handle(rawMsg []byte) {
 		return
 	}
 
-	slog.Info("ws command", "type", msg.Type, "addr", c.conn.RemoteAddr())
+	addr := "<nil>"
+	if c.conn != nil {
+		addr = c.conn.RemoteAddr().String()
+	}
+
+	slog.Info("ws command", "type", msg.Type, "addr", addr)
 
 	if msg.Type == "snapshot" {
 		snap, err := EncodeSnapshot(c.hub.player.Snapshot())
