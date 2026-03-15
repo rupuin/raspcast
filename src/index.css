@@ -123,8 +123,8 @@ input {
 
 .volume-range::-webkit-slider-thumb {
   appearance: none;
-  height: 14px;
-  width: 14px;
+  height: 20px;
+  width: 20px;
   border-radius: 50%;
   background: #fecdd3;
   border: 2px solid rgba(244, 63, 94, 0.5);
@@ -139,8 +139,8 @@ input {
 }
 
 .volume-range::-moz-range-thumb {
-  height: 14px;
-  width: 14px;
+  height: 20px;
+  width: 20px;
   border-radius: 50%;
   border: 2px solid rgba(244, 63, 94, 0.5);
   background: #fecdd3;
