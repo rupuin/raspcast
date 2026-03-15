@@ -23,11 +23,16 @@ export class PlayerWsClient {
     this.manuallyClosed = false
     this.doConnect()
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    window.addEventListener('pageshow', this.handlePageShow)
   }
 
   disconnect() {
     this.manuallyClosed = true
-    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange,
+    )
+    window.addEventListener('pageshow', this.handlePageShow)
 
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer)
@@ -47,13 +52,11 @@ export class PlayerWsClient {
 
     // iOS can leave the socket in a zombie OPEN state after backgrounding,
     // or simply not fire onclose — force reconnect when returning to foreground.
-    if (this.ws?.readyState !== WebSocket.OPEN) {
-      if (this.reconnectTimer !== null) {
-        clearTimeout(this.reconnectTimer)
-        this.reconnectTimer = null
-      }
-      this.doConnect()
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
+    this.doConnect()
   }
 
   private doConnect() {
@@ -108,5 +111,15 @@ export class PlayerWsClient {
       this.reconnectTimer = null
       this.doConnect()
     }, 2000)
+  }
+
+  private handlePageShow = (e: PageTransitionEvent) => {
+    if (e.persisted && !this.manuallyClosed) {
+      if (this.reconnectTimer !== null) {
+        clearTimeout(this.reconnectTimer)
+        this.reconnectTimer = null
+      }
+      this.doConnect()
+    }
   }
 }
