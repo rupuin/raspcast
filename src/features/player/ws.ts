@@ -13,6 +13,7 @@ export class PlayerWsClient {
 
   onOpen?: () => void
   onMessage?: (msg: PlayerServerMessage) => void
+  onReconnecting?: () => void
   onClose?: () => void
 
   constructor(url: string) {
@@ -90,9 +91,10 @@ export class PlayerWsClient {
     }
 
     this.ws.onclose = () => {
-      this.onClose?.()
-
-      if (!this.manuallyClosed) {
+      if (this.manuallyClosed) {
+        this.onClose?.()
+      } else {
+        this.onReconnecting?.()
         this.scheduleReconnect()
       }
     }

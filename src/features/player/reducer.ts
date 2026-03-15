@@ -2,6 +2,7 @@ import type { PlayerServerMessage, PlayerState } from './types'
 
 export type PlayerUiState = PlayerState & {
   connected: boolean
+  reconnecting: boolean
   error: string | null
 }
 
@@ -14,6 +15,7 @@ export const initialPlayerState: PlayerUiState = {
   paused: false,
   volume: 100,
   connected: false,
+  reconnecting: false,
   error: null,
 }
 
@@ -21,14 +23,17 @@ export function playerReducer(
   state: PlayerUiState,
   action:
     | { type: 'connected' }
+    | { type: 'reconnecting' }
     | { type: 'disconnected' }
     | { type: 'server_message'; message: PlayerServerMessage },
 ): PlayerUiState {
   switch (action.type) {
     case 'connected':
-      return { ...state, connected: true, error: null }
+      return { ...state, connected: true, reconnecting: false, error: null }
+    case 'reconnecting':
+      return { ...state, connected: false, reconnecting: true }
     case 'disconnected':
-      return { ...state, connected: false }
+      return { ...state, connected: false, reconnecting: false }
     case 'server_message': {
       const msg = action.message
       switch (msg.type) {

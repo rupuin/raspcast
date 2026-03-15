@@ -60,6 +60,10 @@ export function PlayerView() {
       }
     }
 
+    client.onReconnecting = () => {
+      dispatch({ type: 'reconnecting' })
+    }
+
     client.onClose = () => {
       dispatch({ type: 'disconnected' })
     }
@@ -186,11 +190,13 @@ export function PlayerView() {
               className={`h-2 w-2 rounded-full transition-colors ${
                 state.connected
                   ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]'
-                  : 'bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]'
+                  : state.reconnecting
+                    ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)] animate-pulse'
+                    : 'bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.4)]'
               }`}
             />
             <span className="text-xs text-slate-500">
-              {state.connected ? 'Connected' : 'Offline'}
+              {state.connected ? 'Connected' : state.reconnecting ? 'Reconnecting' : 'Offline'}
             </span>
           </div>
         </header>
@@ -259,7 +265,7 @@ export function PlayerView() {
           <button
             type="submit"
             tabIndex={urlExpanded ? 0 : -1}
-            disabled={!state.connected || !urlInput.trim()}
+            disabled={(!state.connected && !state.reconnecting) || !urlInput.trim()}
             className={`shrink-0 rounded-xl bg-rose-500/15 text-rose-400 transition-all duration-200 ease-out hover:bg-rose-500/25 disabled:opacity-20 disabled:cursor-not-allowed overflow-hidden ${
               urlExpanded
                 ? 'max-w-[2.5rem] p-2 opacity-100'
@@ -312,7 +318,7 @@ export function PlayerView() {
               step="1"
               value={seekPct}
               onChange={handleSeek}
-              disabled={!state.connected || !canControl}
+              disabled={(!state.connected && !state.reconnecting) || !canControl}
               style={{
                 background: `linear-gradient(to right, rgba(244,63,94,0.7) ${seekPct}%, rgba(255,255,255,0.08) ${seekPct}%)`,
               }}
@@ -335,7 +341,7 @@ export function PlayerView() {
                 <button
                   type="button"
                   onClick={() => setShowSubPanel((v) => !v)}
-                  disabled={!state.connected || !canControl}
+                  disabled={(!state.connected && !state.reconnecting) || !canControl}
                   className={`rounded-xl p-2.5 transition disabled:opacity-20 disabled:cursor-not-allowed ${
                     subtitlesLoaded
                       ? 'text-rose-400 hover:bg-rose-500/10'
@@ -350,7 +356,7 @@ export function PlayerView() {
                 <button
                   type="button"
                   onClick={() => handleSkip(-5)}
-                  disabled={!state.connected || !canControl}
+                  disabled={(!state.connected && !state.reconnecting) || !canControl}
                   className="rounded-xl p-2.5 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Rewind className="h-5 w-5" strokeWidth={1.5} />
@@ -359,7 +365,7 @@ export function PlayerView() {
                 <button
                   type="button"
                   onClick={handlePlayPause}
-                  disabled={!state.connected || (!canPlay && !canControl)}
+                  disabled={(!state.connected && !state.reconnecting) || (!canPlay && !canControl)}
                   className="mx-1 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-400 hover:shadow-rose-600/35 active:scale-95 disabled:opacity-25 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   {state.streaming && !state.paused ? (
@@ -380,7 +386,7 @@ export function PlayerView() {
                 <button
                   type="button"
                   onClick={() => handleSkip(5)}
-                  disabled={!state.connected || !canControl}
+                  disabled={(!state.connected && !state.reconnecting) || !canControl}
                   className="rounded-xl p-2.5 text-slate-400 transition hover:text-white hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <FastForward className="h-5 w-5" strokeWidth={1.5} />
@@ -389,7 +395,7 @@ export function PlayerView() {
                 <button
                   type="button"
                   onClick={handleStop}
-                  disabled={!state.connected || !canControl}
+                  disabled={(!state.connected && !state.reconnecting) || !canControl}
                   className="rounded-xl p-2.5 text-slate-500 transition hover:text-red-300 hover:bg-white/8 disabled:opacity-20 disabled:cursor-not-allowed"
                 >
                   <Square className="h-5 w-5" strokeWidth={1.5} />
@@ -411,7 +417,7 @@ export function PlayerView() {
                 step="1"
                 value={state.volume}
                 onChange={handleVolume}
-                disabled={!state.connected}
+                disabled={(!state.connected && !state.reconnecting)}
                 style={{
                   background: `linear-gradient(to top, rgba(148,163,184,0.5) 0%, rgba(244,63,94,0.6) ${state.volume}%, rgba(255,255,255,0.06) ${state.volume}%)`,
                 }}
