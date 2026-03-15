@@ -1,5 +1,10 @@
 import type { PlayerCommand, PlayerServerMessage } from './types'
 
+const initialReconnectDelayMs = 300
+const maxReconnectDelayMs = 3000
+const connectTimeoutMs = 1500
+const probeTimeoutMs = 900
+
 export function getSocketUrl() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${protocol}//${window.location.host}/ws`
@@ -9,40 +14,28 @@ export class PlayerWsClient {
   private ws: WebSocket | null = null
   private reconnectTimer: number | null = null
   private connectTimer: number | null = null
-  private reconnectDelay = 300
+  private probeTimer: number | null = null
+  private reconnectDelay = initialReconnectDelayMs
+  private lastMessageAt = 0
   private manuallyClosed = false
-  private url: string
 
   onOpen?: () => void
   onMessage?: (msg: PlayerServerMessage) => void
   onReconnecting?: () => void
   onClose?: () => void
 
-  constructor(url: string) {
-    this.url = url
-  }
+  constructor(private readonly url: string) {}
 
   connect() {
     this.manuallyClosed = false
+    this.bindLifecycleEvents()
     this.resume()
-    document.addEventListener('visibilitychange', this.handleVisibilityChange)
-    window.addEventListener('pagehide', this.handlePageHide)
-    window.addEventListener('pageshow', this.handlePageShow)
-    window.addEventListener('focus', this.handleFocus)
-    window.addEventListener('online', this.handleOnline)
   }
 
   disconnect() {
     this.manuallyClosed = true
-    document.removeEventListener(
-      'visibilitychange',
-      this.handleVisibilityChange,
-    )
-    window.removeEventListener('pagehide', this.handlePageHide)
-    window.removeEventListener('pageshow', this.handlePageShow)
-    window.removeEventListener('focus', this.handleFocus)
-    window.removeEventListener('online', this.handleOnline)
-    this.suspend()
+    this.unbindLifecycleEvents()
+    this.closeSocket(1000, 'disconnect')
   }
 
   send(cmd: PlayerCommand) {
@@ -53,7 +46,7 @@ export class PlayerWsClient {
 
   private handleVisibilityChange = () => {
     if (document.hidden) {
-      this.suspend()
+      this.pauseTimers()
       return
     }
 
@@ -61,18 +54,10 @@ export class PlayerWsClient {
   }
 
   private handlePageHide = () => {
-    this.suspend()
+    this.closeSocket(1000, 'pagehide')
   }
 
-  private handlePageShow = () => {
-    this.resume()
-  }
-
-  private handleFocus = () => {
-    this.resume()
-  }
-
-  private handleOnline = () => {
+  private handleForeground = () => {
     this.resume()
   }
 
@@ -81,20 +66,46 @@ export class PlayerWsClient {
       return
     }
 
-    if (
-      this.ws?.readyState === WebSocket.OPEN ||
-      this.ws?.readyState === WebSocket.CONNECTING
-    ) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.probe()
+      return
+    }
+
+    if (this.ws?.readyState === WebSocket.CONNECTING) {
       return
     }
 
     this.clearReconnectTimer()
-    this.doConnect()
+    this.openSocket()
   }
 
-  private suspend() {
+  private bindLifecycleEvents() {
+    document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    window.addEventListener('pagehide', this.handlePageHide)
+    window.addEventListener('pageshow', this.handleForeground)
+    window.addEventListener('focus', this.handleForeground)
+    window.addEventListener('online', this.handleForeground)
+  }
+
+  private unbindLifecycleEvents() {
+    document.removeEventListener(
+      'visibilitychange',
+      this.handleVisibilityChange,
+    )
+    window.removeEventListener('pagehide', this.handlePageHide)
+    window.removeEventListener('pageshow', this.handleForeground)
+    window.removeEventListener('focus', this.handleForeground)
+    window.removeEventListener('online', this.handleForeground)
+  }
+
+  private pauseTimers() {
     this.clearReconnectTimer()
     this.clearConnectTimer()
+    this.clearProbeTimer()
+  }
+
+  private closeSocket(code?: number, reason?: string) {
+    this.pauseTimers()
 
     if (!this.ws) {
       return
@@ -104,14 +115,14 @@ export class PlayerWsClient {
     this.ws.onmessage = null
     this.ws.onclose = null
     this.ws.onerror = null
-    this.ws.close()
+    this.ws.close(code, reason)
     this.ws = null
   }
 
-  private doConnect() {
+  private openSocket() {
     this.onReconnecting?.()
 
-    this.suspend()
+    this.closeSocket()
 
     const ws = new WebSocket(this.url)
     this.ws = ws
@@ -122,7 +133,9 @@ export class PlayerWsClient {
         return
       }
       this.clearConnectTimer()
+      this.clearProbeTimer()
       this.reconnectDelay = 300
+      this.lastMessageAt = Date.now()
       this.onOpen?.()
     }
 
@@ -130,6 +143,9 @@ export class PlayerWsClient {
       if (this.ws !== ws) {
         return
       }
+
+      this.clearProbeTimer()
+      this.lastMessageAt = Date.now()
 
       try {
         const message = JSON.parse(event.data) as PlayerServerMessage
@@ -145,6 +161,7 @@ export class PlayerWsClient {
       }
 
       this.clearConnectTimer()
+      this.clearProbeTimer()
       this.ws = null
 
       if (this.manuallyClosed) {
@@ -169,13 +186,43 @@ export class PlayerWsClient {
     }
   }
 
+  private probe() {
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      return
+    }
+
+    const ws = this.ws
+    const startedAt = Date.now()
+
+    this.clearProbeTimer()
+    this.send({ type: 'snapshot' })
+
+    // On resume, keep the healthy socket if it answers quickly. If it does not,
+    // force a fresh connection instead of waiting for Safari to notice.
+    this.probeTimer = window.setTimeout(() => {
+      if (this.ws !== ws || ws.readyState !== WebSocket.OPEN) {
+        return
+      }
+
+      if (this.lastMessageAt >= startedAt) {
+        return
+      }
+
+      ws.close(1000, 'resume-probe')
+      this.openSocket()
+    }, probeTimeoutMs)
+  }
+
   private scheduleReconnect() {
     if (this.reconnectTimer !== null) {
       return
     }
 
     const delay = this.reconnectDelay
-    this.reconnectDelay = Math.min(this.reconnectDelay * 2, 3000)
+    this.reconnectDelay = Math.min(
+      this.reconnectDelay * 2,
+      maxReconnectDelayMs,
+    )
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
@@ -192,7 +239,7 @@ export class PlayerWsClient {
       }
 
       ws.close()
-    }, 1500)
+    }, connectTimeoutMs)
   }
 
   private clearReconnectTimer() {
@@ -206,6 +253,13 @@ export class PlayerWsClient {
     if (this.connectTimer !== null) {
       clearTimeout(this.connectTimer)
       this.connectTimer = null
+    }
+  }
+
+  private clearProbeTimer() {
+    if (this.probeTimer !== null) {
+      clearTimeout(this.probeTimer)
+      this.probeTimer = null
     }
   }
 }
