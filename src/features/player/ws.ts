@@ -8,6 +8,8 @@ export function getSocketUrl() {
 export class PlayerWsClient {
   private ws: WebSocket | null = null
   private reconnectTimer: number | null = null
+  private connectTimer: number | null = null
+  private reconnectDelay = 300
   private manuallyClosed = false
   private url: string
 
@@ -22,9 +24,12 @@ export class PlayerWsClient {
 
   connect() {
     this.manuallyClosed = false
-    this.doConnect()
+    this.resume()
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
+    window.addEventListener('pagehide', this.handlePageHide)
     window.addEventListener('pageshow', this.handlePageShow)
+    window.addEventListener('focus', this.handleFocus)
+    window.addEventListener('online', this.handleOnline)
   }
 
   disconnect() {
@@ -33,13 +38,11 @@ export class PlayerWsClient {
       'visibilitychange',
       this.handleVisibilityChange,
     )
+    window.removeEventListener('pagehide', this.handlePageHide)
     window.removeEventListener('pageshow', this.handlePageShow)
-
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-    this.ws?.close()
+    window.removeEventListener('focus', this.handleFocus)
+    window.removeEventListener('online', this.handleOnline)
+    this.suspend()
   }
 
   send(cmd: PlayerCommand) {
@@ -49,40 +52,85 @@ export class PlayerWsClient {
   }
 
   private handleVisibilityChange = () => {
-    if (document.hidden || this.manuallyClosed) return
-
-    // iOS can leave the socket in a zombie OPEN state after backgrounding,
-    // or simply not fire onclose — force reconnect when returning to foreground.
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
+    if (document.hidden) {
+      this.suspend()
+      return
     }
+
+    this.resume()
+  }
+
+  private handlePageHide = () => {
+    this.suspend()
+  }
+
+  private handlePageShow = () => {
+    this.resume()
+  }
+
+  private handleFocus = () => {
+    this.resume()
+  }
+
+  private handleOnline = () => {
+    this.resume()
+  }
+
+  private resume() {
+    if (this.manuallyClosed || document.hidden) {
+      return
+    }
+
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) {
+      return
+    }
+
+    this.clearReconnectTimer()
     this.doConnect()
+  }
+
+  private suspend() {
+    this.clearReconnectTimer()
+    this.clearConnectTimer()
+
+    if (!this.ws) {
+      return
+    }
+
+    this.ws.onopen = null
+    this.ws.onmessage = null
+    this.ws.onclose = null
+    this.ws.onerror = null
+    this.ws.close()
+    this.ws = null
   }
 
   private doConnect() {
     this.onReconnecting?.()
 
-    if (this.ws) {
-      this.ws.onopen = null
-      this.ws.onmessage = null
-      this.ws.onclose = null
-      this.ws.onerror = null
-      this.ws.close()
-      this.ws = null
-    }
+    this.suspend()
 
-    this.ws = new WebSocket(this.url)
+    const ws = new WebSocket(this.url)
+    this.ws = ws
+    this.armConnectTimeout(ws)
 
-    this.ws.onopen = () => {
-      if (this.reconnectTimer !== null) {
-        clearTimeout(this.reconnectTimer)
-        this.reconnectTimer = null
+    ws.onopen = () => {
+      if (this.ws !== ws) {
+        return
       }
+      this.clearConnectTimer()
+      this.reconnectDelay = 300
       this.onOpen?.()
     }
 
-    this.ws.onmessage = (event) => {
+    ws.onmessage = (event) => {
+      if (this.ws !== ws) {
+        return
+      }
+
       try {
         const message = JSON.parse(event.data) as PlayerServerMessage
         this.onMessage?.(message)
@@ -91,17 +139,33 @@ export class PlayerWsClient {
       }
     }
 
-    this.ws.onclose = () => {
+    ws.onclose = () => {
+      if (this.ws !== ws) {
+        return
+      }
+
+      this.clearConnectTimer()
+      this.ws = null
+
       if (this.manuallyClosed) {
         this.onClose?.()
-      } else {
-        this.onReconnecting?.()
-        this.scheduleReconnect()
+        return
       }
+
+      if (document.hidden) {
+        return
+      }
+
+      this.onReconnecting?.()
+      this.scheduleReconnect()
     }
 
-    this.ws.onerror = () => {
-      this.ws?.close()
+    ws.onerror = () => {
+      if (this.ws !== ws) {
+        return
+      }
+
+      ws.close()
     }
   }
 
@@ -110,19 +174,38 @@ export class PlayerWsClient {
       return
     }
 
-    this.reconnectTimer = setTimeout(() => {
+    const delay = this.reconnectDelay
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, 3000)
+
+    this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
-      this.doConnect()
-    }, 300)
+      this.resume()
+    }, delay)
   }
 
-  private handlePageShow = (e: PageTransitionEvent) => {
-    if (e.persisted && !this.manuallyClosed) {
-      if (this.reconnectTimer !== null) {
-        clearTimeout(this.reconnectTimer)
-        this.reconnectTimer = null
+  private armConnectTimeout(ws: WebSocket) {
+    this.clearConnectTimer()
+
+    this.connectTimer = window.setTimeout(() => {
+      if (this.ws !== ws || ws.readyState !== WebSocket.CONNECTING) {
+        return
       }
-      this.doConnect()
+
+      ws.close()
+    }, 1500)
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+  }
+
+  private clearConnectTimer() {
+    if (this.connectTimer !== null) {
+      clearTimeout(this.connectTimer)
+      this.connectTimer = null
     }
   }
 }
