@@ -21,6 +21,52 @@ export class PlayerWsClient {
 
   connect() {
     this.manuallyClosed = false
+    this.doConnect()
+    document.addEventListener('visibilitychange', this.handleVisibilityChange)
+  }
+
+  disconnect() {
+    this.manuallyClosed = true
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange)
+
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    this.ws?.close()
+  }
+
+  send(cmd: PlayerCommand) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(cmd))
+    }
+  }
+
+  private handleVisibilityChange = () => {
+    if (document.hidden || this.manuallyClosed) return
+
+    // iOS can leave the socket in a zombie OPEN state after backgrounding,
+    // or simply not fire onclose — force reconnect when returning to foreground.
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      if (this.reconnectTimer !== null) {
+        clearTimeout(this.reconnectTimer)
+        this.reconnectTimer = null
+      }
+      this.doConnect()
+    }
+  }
+
+  private doConnect() {
+    // Null out handlers on stale socket to avoid duplicate callbacks
+    if (this.ws) {
+      this.ws.onopen = null
+      this.ws.onmessage = null
+      this.ws.onclose = null
+      this.ws.onerror = null
+      this.ws.close()
+      this.ws = null
+    }
+
     this.ws = new WebSocket(this.url)
 
     this.ws.onopen = () => {
@@ -53,22 +99,6 @@ export class PlayerWsClient {
     }
   }
 
-  disconnect() {
-    this.manuallyClosed = true
-
-    if (this.reconnectTimer !== null) {
-      clearTimeout(this.reconnectTimer)
-      this.reconnectTimer = null
-    }
-    this.ws?.close()
-  }
-
-  send(cmd: PlayerCommand) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(cmd))
-    }
-  }
-
   private scheduleReconnect() {
     if (this.reconnectTimer !== null) {
       return
@@ -76,7 +106,7 @@ export class PlayerWsClient {
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      this.connect()
+      this.doConnect()
     }, 2000)
   }
 }

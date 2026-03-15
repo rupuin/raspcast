@@ -15,7 +15,9 @@ import {
 } from 'lucide-react'
 import {
   type ChangeEvent,
+  type ClipboardEvent,
   type SyntheticEvent,
+  type FocusEvent,
   useEffect,
   useReducer,
   useRef,
@@ -49,7 +51,11 @@ export function PlayerView() {
 
     client.onMessage = (message) => {
       dispatch({ type: 'server_message', message })
-      if (message.type === 'active' || message.type === 'stopped' || message.type === 'error') {
+      if (
+        message.type === 'active' ||
+        message.type === 'stopped' ||
+        message.type === 'error'
+      ) {
         setLoading(false)
       }
     }
@@ -81,7 +87,7 @@ export function PlayerView() {
   const urlInputRef = useRef<HTMLInputElement>(null)
   const urlFormRef = useRef<HTMLFormElement>(null)
 
-  const handleUrlBlur = (e: React.FocusEvent) => {
+  const handleUrlBlur = (e: FocusEvent) => {
     // Collapse when focus leaves the form entirely (not moving to another element inside it)
     if (
       state.streaming &&
@@ -107,7 +113,7 @@ export function PlayerView() {
     playUrl(urlInput)
   }
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
     const pasted = e.clipboardData.getData('text').trim()
     if (pasted) {
@@ -255,10 +261,16 @@ export function PlayerView() {
             tabIndex={urlExpanded ? 0 : -1}
             disabled={!state.connected || !urlInput.trim()}
             className={`shrink-0 rounded-xl bg-rose-500/15 text-rose-400 transition-all duration-200 ease-out hover:bg-rose-500/25 disabled:opacity-20 disabled:cursor-not-allowed overflow-hidden ${
-              urlExpanded ? 'max-w-[2.5rem] p-2 opacity-100' : 'max-w-0 p-0 opacity-0'
+              urlExpanded
+                ? 'max-w-[2.5rem] p-2 opacity-100'
+                : 'max-w-0 p-0 opacity-0'
             }`}
           >
-            <Play className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} fill="currentColor" />
+            <Play
+              className="h-3.5 w-3.5 shrink-0"
+              strokeWidth={2.5}
+              fill="currentColor"
+            />
           </button>
         </form>
 
@@ -351,9 +363,17 @@ export function PlayerView() {
                   className="mx-1 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500 text-white shadow-lg shadow-rose-600/25 transition hover:bg-rose-400 hover:shadow-rose-600/35 active:scale-95 disabled:opacity-25 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   {state.streaming && !state.paused ? (
-                    <Pause className="h-6 w-6" strokeWidth={2.5} fill="currentColor" />
+                    <Pause
+                      className="h-6 w-6"
+                      strokeWidth={2.5}
+                      fill="currentColor"
+                    />
                   ) : (
-                    <Play className="h-6 w-6 translate-x-0.5" strokeWidth={2.5} fill="currentColor" />
+                    <Play
+                      className="h-6 w-6 translate-x-0.5"
+                      strokeWidth={2.5}
+                      fill="currentColor"
+                    />
                   )}
                 </button>
 
@@ -379,7 +399,10 @@ export function PlayerView() {
 
             {/* Vertical Volume */}
             <div className="flex flex-col items-center gap-1.5 border-l border-white/8 pl-3 ml-1">
-              <VolumeIcon className="h-3.5 w-3.5 text-slate-500" strokeWidth={1.5} />
+              <VolumeIcon
+                className="h-3.5 w-3.5 text-slate-500"
+                strokeWidth={1.5}
+              />
               <input
                 className="volume-range"
                 type="range"
