@@ -51,6 +51,8 @@ func (c *Client) handle(rawMsg []byte) {
 		return
 	}
 
+	slog.Info("ws command", "type", msg.Type, "addr", c.conn.RemoteAddr())
+
 	if msg.Type == "snapshot" {
 		snap, err := EncodeSnapshot(c.hub.player.Snapshot())
 		if err != nil {

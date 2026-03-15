@@ -64,8 +64,10 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = struct{}{}
+			slog.Info("ws client connected", "addr", client.conn.RemoteAddr(), "clients", len(h.clients))
 		case client := <-h.unregister:
 			h.removeClient(client)
+			slog.Info("ws client disconnected", "addr", client.conn.RemoteAddr(), "clients", len(h.clients))
 		case outbound := <-h.outbound:
 			if _, ok := h.clients[outbound.client]; !ok {
 				continue
