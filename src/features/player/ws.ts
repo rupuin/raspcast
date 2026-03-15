@@ -61,7 +61,8 @@ export class PlayerWsClient {
   }
 
   private doConnect() {
-    // Null out handlers on stale socket to avoid duplicate callbacks
+    this.onReconnecting?.()
+
     if (this.ws) {
       this.ws.onopen = null
       this.ws.onmessage = null

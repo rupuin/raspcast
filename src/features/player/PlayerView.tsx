@@ -196,7 +196,7 @@ export function PlayerView() {
               }`}
             />
             <span className="text-xs text-slate-500">
-              {state.connected ? 'Connected' : state.reconnecting ? 'Reconnecting' : 'Offline'}
+              {state.connected ? 'Connected' : state.reconnecting ? 'Connecting…' : 'Offline'}
             </span>
           </div>
         </header>
