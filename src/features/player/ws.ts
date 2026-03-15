@@ -32,7 +32,7 @@ export class PlayerWsClient {
       'visibilitychange',
       this.handleVisibilityChange,
     )
-    window.addEventListener('pageshow', this.handlePageShow)
+    window.removeEventListener('pageshow', this.handlePageShow)
 
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer)
@@ -110,7 +110,7 @@ export class PlayerWsClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       this.doConnect()
-    }, 2000)
+    }, 300)
   }
 
   private handlePageShow = (e: PageTransitionEvent) => {
